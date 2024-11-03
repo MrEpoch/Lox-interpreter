@@ -2,6 +2,7 @@ use std::env;
 use std::fmt;
 use std::fs;
 use std::io::{self, Write};
+use std::process::exit;
 
 #[derive(Debug)]
 enum Literal {
@@ -88,10 +89,17 @@ fn main() {
 
 
             if !file_contents.is_empty() {
-                let tokens: Vec<Token> = scan_tokens(&file_contents);
+                let mut error_code: u8 = 0;
+                let tokens: Vec<Token> = scan_tokens(&file_contents, &mut error_code);
+
                 for v in tokens.iter() {
                     println!("{} {} null", v.token_type, v.lexeme);
                 }
+
+                if error_code == 65 {
+                    exit(65);
+                }
+
             } else {
                 println!("EOF  null"); // Placeholder, remove this line when implementing the scanner
             }
@@ -103,19 +111,11 @@ fn main() {
     }
 }
 
-fn scan_tokens(source: &String) -> Vec<Token> {
+fn scan_tokens(source: &String, error_code: &mut u8) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
-
-    let mut current: usize = 0;
     let mut line = 1;
-    let mut start: usize;
-    let mut c: char;
 
-    while current < source.len() {
-        start = current;
-        c = source.chars().nth(current).unwrap();
-        current += 1;
-
+    for c in source.chars() {
         match c {
             '(' => tokens.push(Token::new(TokenType::LEFT_PAREN, String::from("("), Option::from(Literal::Nil), line)),
             ')' => tokens.push(Token::new(TokenType::RIGHT_PAREN, String::from(")"), Option::from(Literal::Nil), line)),
@@ -127,7 +127,11 @@ fn scan_tokens(source: &String) -> Vec<Token> {
             '+' => tokens.push(Token::new(TokenType::PLUS, String::from("+"), Option::from(Literal::Nil), line)),
             ';' => tokens.push(Token::new(TokenType::SEMICOLON, String::from(";"), Option::from(Literal::Nil), line)),
             '*' => tokens.push(Token::new(TokenType::STAR, String::from("*"), Option::from(Literal::Nil), line)),
-            _ => ()
+            '\n' => line += 1,
+            _ => {
+                eprintln!("[line {line}] Error: Unexpected character: {c}");
+                *error_code = 65;
+            }
         }
     }
 
