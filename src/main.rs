@@ -12,13 +12,6 @@ enum Literal {
     Bool(bool),
     Nil,
 }
-/*
-impl fmt::Display for Literal {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-*/
 
 impl fmt::Display for TokenType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -140,9 +133,11 @@ fn scan_tokens(source: &String, error_code: &mut u8) -> Vec<Token> {
     let mut tokens: Vec<Token> = Vec::new();
     let mut line = 1;
     let mut current: usize = 0;
+    let mut char_array = source.chars().collect::<Vec<char>>();
+    let char_count = char_array.len();
 
-    while current < source.len() {
-        let c = source.chars().nth(current).unwrap();
+    while current < char_count {
+        let c = char_array.get(current).unwrap();
         current += 1;
         match c {
             '(' => tokens.push(Token::new(
@@ -206,7 +201,7 @@ fn scan_tokens(source: &String, error_code: &mut u8) -> Vec<Token> {
                 line,
             )),
             '!' => {
-                let is_bang = match_operator(source, &mut current);
+                let is_bang = match_operator(&mut char_array, &mut current, '=', char_count);
                 tokens.push(Token::new(
                     if is_bang {
                         TokenType::BANG_EQUAL
@@ -223,7 +218,7 @@ fn scan_tokens(source: &String, error_code: &mut u8) -> Vec<Token> {
                 ))
             }
             '=' => {
-                let is_equal = match_operator(source, &mut current);
+                let is_equal = match_operator(&mut char_array, &mut current, '=', char_count);
                 tokens.push(Token::new(
                     if is_equal {
                         TokenType::EQUAL_EQUAL
@@ -240,7 +235,7 @@ fn scan_tokens(source: &String, error_code: &mut u8) -> Vec<Token> {
                 ))
             }
             '<' => {
-                let is_less = match_operator(source, &mut current);
+                let is_less = match_operator(&mut char_array, &mut current, '=', char_count);
                 tokens.push(Token::new(
                     if is_less {
                         TokenType::LESS_EQUAL
@@ -257,7 +252,7 @@ fn scan_tokens(source: &String, error_code: &mut u8) -> Vec<Token> {
                 ))
             }
             '>' => {
-                let is_greater = match_operator(source, &mut current);
+                let is_greater = match_operator(&mut char_array, &mut current, '=', char_count);
                 tokens.push(Token::new(
                     if is_greater {
                         TokenType::GREATER_EQUAL
@@ -273,6 +268,24 @@ fn scan_tokens(source: &String, error_code: &mut u8) -> Vec<Token> {
                     line,
                 ))
             }
+            '/' => {
+                let matched = match_operator(&mut char_array, &mut current, '/', char_count);
+                if matched {
+                    while peek(&mut char_array, &mut current, char_count) != '\n'
+                        && !is_end(&mut current, char_count)
+                    {
+                        current += 1;
+                    }
+                } else {
+                    tokens.push(Token::new(
+                        TokenType::SLASH,
+                        String::from("/"),
+                        Option::from(Literal::Nil),
+                        line,
+                    ));
+                }
+            }
+            ' ' | '\r' | '\t' => (),
             '\n' => line += 1,
             _ => {
                 eprintln!("[line {line}] Error: Unexpected character: {c}");
@@ -281,17 +294,33 @@ fn scan_tokens(source: &String, error_code: &mut u8) -> Vec<Token> {
         }
     }
 
-    fn match_operator(source: &String, current: &mut usize) -> bool {
-        if source.len() <= *current {
+    fn is_end(current: &mut usize, char_count: usize) -> bool {
+        if char_count <= *current {
+            true
+        } else {
+            false
+        }
+    }
+
+    fn match_operator(
+        char_array: &mut Vec<char>,
+        current: &mut usize,
+        operator: char,
+        char_count: usize,
+    ) -> bool {
+        if is_end(current, char_count) || (*char_array.get(*current).unwrap() != operator) {
             return false;
         }
+        *current += 1;
+        true
+    }
 
-        if source.chars().nth(*current).unwrap() == '=' {
-            *current += 1;
-            return true;
+    fn peek(char_array: &mut Vec<char>, current: &mut usize, char_count: usize) -> char {
+        if is_end(current, char_count) {
+            '\0'
+        } else {
+            *char_array.get(*current).unwrap()
         }
-
-        false
     }
 
     tokens.push(Token::new(
