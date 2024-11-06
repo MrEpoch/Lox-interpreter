@@ -169,13 +169,11 @@ fn main() {
 fn print_based_on_literal(literal: &Literal) -> String {
     match literal {
         Literal::String(s) => s.clone(),
-        Literal::Int(i) => i.to_string(),
         Literal::Number(f) => if (f.0 % 1.0).abs() < f64::EPSILON {
             f.0.to_string() + ".0"
         } else {
             f.0.to_string()
         }
-        Literal::Float(f) => f.to_string(),
         Literal::Bool(b) => b.to_string(),
         Literal::Null => String::from("null"),
     }
