@@ -3,13 +3,14 @@ use std::fmt;
 use std::fs;
 use std::io::{self, Write};
 use std::process::exit;
+use std::collections::HashMap;
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
 
 #[derive(Debug)]
 enum Literal {
     String(String),
-    Int(i32),
     Number((f64, usize)),
-    Float(f32),
     Bool(bool),
     Null,
 }
@@ -26,7 +27,7 @@ impl fmt::Display for TokenType {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 enum TokenType {
     LEFT_PAREN,
     RIGHT_PAREN,
@@ -90,6 +91,29 @@ impl Token {
         }
     }
 }
+
+static RESERVED_KEYWORDS: Lazy<Mutex<HashMap<&'static str, TokenType>>> = Lazy::new(|| {
+    let mut map = HashMap::new();
+
+    map.insert("and", TokenType::AND);
+    map.insert("class", TokenType::CLASS);
+    map.insert("else", TokenType::ELSE);
+    map.insert("false", TokenType::FALSE);
+    map.insert("for", TokenType::FOR);
+    map.insert("fun", TokenType::FUN);
+    map.insert("if", TokenType::IF);
+    map.insert("nil", TokenType::NIL);
+    map.insert("or", TokenType::OR);
+    map.insert("print", TokenType::PRINT);
+    map.insert("return", TokenType::RETURN);
+    map.insert("super", TokenType::SUPER);
+    map.insert("this", TokenType::THIS);
+    map.insert("true", TokenType::TRUE);
+    map.insert("var", TokenType::VAR);
+    map.insert("while", TokenType::WHILE);
+
+    Mutex::new(map)
+});
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -364,8 +388,8 @@ fn scan_tokens(source: &String, error_code: &mut u8) -> Vec<Token> {
                 } else if is_alpha(*c) {
                     let identifier_value = identifier(&mut char_array, &mut current, char_count, start);
                     tokens.push(Token::new(
-                        TokenType::IDENTIFIER,
-                        identifier_value,
+                        identifier_value.1,
+                        identifier_value.0,
                         Option::from(Literal::Null),
                         line
                     ))
@@ -385,18 +409,38 @@ fn scan_tokens(source: &String, error_code: &mut u8) -> Vec<Token> {
         is_alpha(c) || is_digit(c)
     }
 
-    fn identifier(char_array: &mut Vec<char>, current: &mut usize, char_count: usize, start: usize) -> String {
+    fn identifier(char_array: &mut Vec<char>, current: &mut usize, char_count: usize, start: usize) -> (String, TokenType) {
         while is_alpha_numeric(peek(char_array, *current, char_count)) {
             *current += 1;
         }
 
-        char_array[start..*current]
+        let type_of_token = char_array[start..*current]
             .iter()
-            .collect::<String>()
+            .collect::<String>();
+
+        if RESERVED_KEYWORDS.lock().unwrap().contains_key(&type_of_token.as_str()) {
+            (
+                type_of_token.clone(),
+                TokenType::from(
+                    RESERVED_KEYWORDS
+                        .lock()
+                        .unwrap()
+                        .get(&type_of_token.as_str())
+                        .unwrap()
+                        .clone()
+                )
+            )
+        } else {
+            (type_of_token.clone(), TokenType::IDENTIFIER)
+        }
     }
 
     fn is_digit(c: char) -> bool {
         c >= '0' && c <= '9'
+    }
+
+    fn check_reserved() {
+
     }
 
     fn number_process(
