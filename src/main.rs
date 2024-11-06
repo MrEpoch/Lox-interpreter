@@ -8,6 +8,7 @@ use std::process::exit;
 enum Literal {
     String(String),
     Int(i32),
+    Number((f64, usize)),
     Float(f32),
     Bool(bool),
     Null,
@@ -115,9 +116,10 @@ fn main() {
 
             if !file_contents.is_empty() {
                 let mut error_code: u8 = 0;
-                let tokens: Vec<Token> = scan_tokens(&file_contents, &mut error_code);
+                let mut scanner = Scanner::new();
+                scanner.scan_tokens(&file_contents, &mut error_code);
 
-                for v in tokens.iter() {
+                for v in scanner.tokens.iter() {
                     println!(
                         "{} {} {}",
                         v.token_type,
@@ -143,10 +145,29 @@ fn main() {
 fn print_based_on_literal(literal: &Literal) -> String {
     match literal {
         Literal::String(s) => s.clone(),
-        Literal::Int(i) => String::from(i.to_string()),
-        Literal::Float(f) => String::from(f.to_string()),
-        Literal::Bool(b) => String::from(b.to_string()),
+        Literal::Int(i) => i.to_string(),
+        Literal::Number(f) => if (f.0 % 1.0).abs() < f64::EPSILON {
+            f.0.to_string() + ".0"
+        } else {
+            f.0.to_string()
+        }
+        Literal::Float(f) => f.to_string(),
+        Literal::Bool(b) => b.to_string(),
         Literal::Null => String::from("null"),
+    }
+}
+
+struct Scanner {
+    pub tokens: Vec<Token>,
+}
+
+impl Scanner {
+    fn new() -> Self {
+        Self { tokens: Vec::new() }
+    }
+
+    fn scan_tokens(&mut self, source: &String, error_code: &mut u8) {
+        self.tokens = scan_tokens(source, error_code);
     }
 }
 
@@ -332,10 +353,62 @@ fn scan_tokens(source: &String, error_code: &mut u8) -> Vec<Token> {
             ' ' | '\r' | '\t' => (),
             '\n' => line += 1,
             _ => {
-                eprintln!("[line {line}] Error: Unexpected character: {c}");
-                *error_code = 65;
+                if is_digit(*c) {
+                    let number = number_process(&mut char_array, &mut current, start, char_count);
+                    tokens.push(Token::new(
+                        TokenType::NUMBER,
+                        number.2,
+                        Option::from(Literal::Number((number.0, number.1))),
+                        line,
+                    ));
+                } else {
+                    eprintln!("[line {line}] Error: Unexpected character: {c}");
+                    *error_code = 65;
+                }
             }
         }
+    }
+
+    fn is_digit(c: char) -> bool {
+        c >= '0' && c <= '9'
+    }
+
+    fn number_process(
+        char_array: &mut Vec<char>,
+        current: &mut usize,
+        start: usize,
+        char_count: usize,
+    ) -> (f64, usize, String) {
+        let mut peeked_value: char = peek(char_array, *current, char_count);
+
+        while is_digit(peeked_value) && !is_end(*current, char_count) {
+            *current += 1;
+            peeked_value = peek(char_array, *current, char_count);
+        }
+
+        let mut formatting_size: usize = 0;
+        // This uses regular peek fn, but adds current + 1, it will not throw cause we handle that
+        // in peek() or more exactly is_end()
+        if peeked_value == '.' && is_digit(peek(char_array, *current + 1, char_count)) {
+            *current += 1;
+            peeked_value = peek(char_array, *current, char_count);
+            while is_digit(peeked_value) && !is_end(*current, char_count) {
+                formatting_size += 1;
+                *current += 1;
+                peeked_value = peek(char_array, *current, char_count);
+            }
+        } else {
+            formatting_size += 1;
+        }
+
+        let number = char_array[start..*current]
+            .iter()
+            .collect::<String>()
+            .parse::<f64>()
+            .unwrap();
+        let string = char_array[start..*current].iter().collect::<String>();
+
+        (number, formatting_size, string)
     }
 
     fn string_process(
