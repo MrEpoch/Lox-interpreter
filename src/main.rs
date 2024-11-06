@@ -361,12 +361,38 @@ fn scan_tokens(source: &String, error_code: &mut u8) -> Vec<Token> {
                         Option::from(Literal::Number((number.0, number.1))),
                         line,
                     ));
+                } else if is_alpha(*c) {
+                    let identifier_value = identifier(&mut char_array, &mut current, char_count, start);
+                    tokens.push(Token::new(
+                        TokenType::IDENTIFIER,
+                        identifier_value,
+                        Option::from(Literal::Null),
+                        line
+                    ))
                 } else {
                     eprintln!("[line {line}] Error: Unexpected character: {c}");
                     *error_code = 65;
                 }
             }
         }
+    }
+
+    fn is_alpha(c: char) -> bool {
+        (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_'
+    }
+
+    fn is_alpha_numeric(c: char) -> bool {
+        is_alpha(c) || is_digit(c)
+    }
+
+    fn identifier(char_array: &mut Vec<char>, current: &mut usize, char_count: usize, start: usize) -> String {
+        while is_alpha_numeric(peek(char_array, *current, char_count)) {
+            *current += 1;
+        }
+
+        char_array[start..*current]
+            .iter()
+            .collect::<String>()
     }
 
     fn is_digit(c: char) -> bool {
