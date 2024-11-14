@@ -60,7 +60,7 @@ impl Parser {
         expr
     }
 
-    // !=, ==
+    // /, *
     fn factor(&mut self) -> Expr {
         let mut expr = self.unary();
         let mut right: Expr;
@@ -68,7 +68,7 @@ impl Parser {
 
         while self.match_operators(vec![TokenType::SLASH, TokenType::STAR]) {
             operator = self.tokens.get(self.current - 1).unwrap().clone();
-            right = self.factor();
+            right = self.unary();
             expr = Expr::Binary { operator, left: Box::new(expr), right: Box::new(right) };
         }
 
