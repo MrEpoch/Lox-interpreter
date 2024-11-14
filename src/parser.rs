@@ -1,4 +1,6 @@
-use crate::{Expr, Literal, Token, TokenType};
+use std::process::exit;
+
+use crate::{language_error, Expr, Literal, Token, TokenType};
 
 
 pub struct Parser {
@@ -102,12 +104,12 @@ impl Parser {
 
         if self.match_operators(vec![TokenType::LEFT_PAREN]) {
             let expr = self.expression();
-            if self.match_operators(vec![TokenType::RIGHT_PAREN]) {
-                return Expr::Grouping(vec![expr]);
-            }
+            self.consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
+            return Expr::Grouping(vec![expr]);
         }
 
-        Expr::Literal(Literal::Null)
+        // self.throw_error(self.peek().clone(), "Expect expression.");
+        exit(65);
     }
 
     fn consume(&mut self, token_type: TokenType, message: &str) {
@@ -116,11 +118,13 @@ impl Parser {
             return;
         }
 
-        panic!("{}", message);
+        // self.throw_error(self.peek().clone(), message);
+        exit(65);
     }
 
-    fn throw_error(token: Token, message: &str) {
-        
+    fn throw_error(&self, token: Token, message: &str) {
+        language_error(token, message);
+        exit(65);
     }
 
     fn match_operators(&mut self, types: Vec<TokenType>) -> bool {
