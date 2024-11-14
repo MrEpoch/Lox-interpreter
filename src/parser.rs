@@ -45,13 +45,13 @@ impl Parser {
         expr
     }
 
-    // !=, ==
-    fn factor(&mut self) -> Expr {
-        let mut expr = self.unary();
-        let mut right: Expr;
+    // +, -
+    fn term(&mut self) -> Expr {
+        let mut expr = self.factor();
         let mut operator: Token;
+        let mut right: Expr;
 
-        while self.match_operators(vec![TokenType::SLASH, TokenType::STAR]) {
+        while self.match_operators(vec![TokenType::MINUS, TokenType::PLUS]) {
             operator = self.tokens.get(self.current - 1).unwrap().clone();
             right = self.factor();
             expr = Expr::Binary { operator, left: Box::new(expr), right: Box::new(right) };
@@ -60,13 +60,13 @@ impl Parser {
         expr
     }
 
-    // +, -
-    fn term(&mut self) -> Expr {
-        let mut expr = self.factor();
-        let mut operator: Token;
+    // !=, ==
+    fn factor(&mut self) -> Expr {
+        let mut expr = self.unary();
         let mut right: Expr;
+        let mut operator: Token;
 
-        while self.match_operators(vec![TokenType::MINUS, TokenType::PLUS]) {
+        while self.match_operators(vec![TokenType::SLASH, TokenType::STAR]) {
             operator = self.tokens.get(self.current - 1).unwrap().clone();
             right = self.factor();
             expr = Expr::Binary { operator, left: Box::new(expr), right: Box::new(right) };

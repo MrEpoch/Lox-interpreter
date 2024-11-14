@@ -214,21 +214,19 @@ fn main() {
                 let expressions = parser.expression();
                 match expressions {
                     Expr::Grouping(exprs) => {
-                        for expr in exprs {
-                            println!("{expr}");
-                        }
+                        println!("{}", handle_grouping(exprs, &String::from("(group "), &String::from(")")).join(" "));
                     }
                     Expr::Number(n) => {
-                        print!("{n}");
+                        println!("{n}");
                     }
                     Expr::Binary { operator, left, right } => {
-                        println!("{}", get_from_binary(Expr::Binary { operator, left, right }));
+                        println!("({} {} {})", operator.lexeme, handle_match(*left, &String::from(""), &String::from("")), handle_match(*right, &String::from(""), &String::from("")));
                     }
                     Expr::Literal(l) => {
                         println!("{}", print_based_on_literal(&l));
                     }
                     Expr::Unary { operator, right } => {
-                        println!("{}", get_from_unary(Expr::Unary { operator, right }));
+                        println!("({})", get_from_unary(Expr::Unary { operator, right }));
                     }
                     Expr::String(s) => {
                         println!("{}", s);
@@ -253,7 +251,7 @@ fn main() {
 
 fn print_based_on_literal(literal: &Literal) -> String {
     match literal {
-        Literal::String(s) => s.clone(),
+        Literal::String(s) => format!("{s}"),
         Literal::Number(f) => {
             if (f.0 % 1.0).abs() < f64::EPSILON {
                 f.0.to_string() + ".0"
@@ -267,15 +265,41 @@ fn print_based_on_literal(literal: &Literal) -> String {
     }
 }
 
-fn get_from_binary(expr_binary: Expr) -> String {
-    if let Expr::Binary { operator, left, right } = expr_binary {
-        format!("{} {} {}", operator.lexeme, get_from_binary(*left), get_from_binary(*right))
-    } else if let Expr::Literal(literal) = expr_binary {
-        print_based_on_literal(&literal)
+fn handle_grouping(exprs: Vec<Expr>, left_side: &String, right_side: &String) -> Vec<String> {
+    let mut r: Vec<String> = vec![];
+    for e in exprs {
+        r.push(handle_match(e, left_side, right_side));
     }
-    else {
-        expr_binary.to_string()
-    }
+    r
+}
+
+fn handle_match(expr: Expr, left_side: &String, right_side: &String) -> String {
+    match expr {
+            Expr::Grouping(exprs) => {
+                format!("{left_side}{}{right_side}", handle_grouping(exprs, &format!("(group "), &format!(")")).join(" "))
+            }
+            Expr::Number(n) => {
+                format!("{left_side}{n}{right_side}")
+            }
+            Expr::Binary { operator, left, right } => {
+                format!("{left_side}({} {} {}){right_side}", operator.lexeme, handle_match(*left, &String::from(""), &String::from("")), handle_match(*right, &String::from(""), &String::from("")))
+            }
+            Expr::Literal(l) => {
+                format!("{left_side}{}{right_side}", print_based_on_literal(&l))
+            }
+            Expr::Unary { operator, right } => {
+                format!("{left_side}({}){right_side}", get_from_unary(Expr::Unary { operator, right }))
+            }
+            Expr::String(s) => {
+                format!("{left_side}{s}{right_side}")
+            }
+            Expr::Nil => {
+                format!("{left_side}nil{right_side}")
+            }
+            _ => {
+                format!("Invalid expression")
+            }
+        }
 }
 
 fn get_from_unary(expr_unary: Expr) -> String {
