@@ -9,6 +9,7 @@ use std::sync::Mutex;
 
 mod scanner;
 mod parser;
+mod evaluator;
 
 #[derive(Debug, Clone)]
 pub enum Literal {
@@ -241,7 +242,24 @@ fn main() {
             } else {
                 println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner
             }
-        }
+        },
+        "evaluate" => {
+            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
+                writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
+                String::new()
+            });
+
+            if !file_contents.is_empty() {
+                let mut scanner = scanner::Scanner::new();
+                scanner.scan_tokens(&file_contents, &mut 0);
+                let mut parser = parser::Parser::new(scanner.tokens);
+                let expressions = parser.expression();
+                let evaluator = evaluator::Evaluator::new(expressions);
+                println!("{}", evaluator.evaluate());
+            } else {
+                println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner
+            }
+        },
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
             return;

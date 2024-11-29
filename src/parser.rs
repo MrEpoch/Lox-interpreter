@@ -108,7 +108,7 @@ impl Parser {
             return Expr::Grouping(vec![expr]);
         }
 
-        // self.throw_error(self.peek().clone(), "Expect expression.");
+        self.throw_error(self.peek().clone(), "Expect expression.");
         exit(65);
     }
 
@@ -118,12 +118,10 @@ impl Parser {
             return;
         }
 
-        // self.throw_error(self.peek().clone(), message);
         exit(65);
     }
 
     fn throw_error(&self, token: Token, message: &str) {
-        language_error(token, message);
         exit(65);
     }
 
