@@ -255,7 +255,23 @@ fn main() {
                 let mut parser = parser::Parser::new(scanner.tokens);
                 let expressions = parser.expression();
                 let evaluator = evaluator::Evaluator::new(expressions);
-                println!("{}", evaluator.evaluate());
+                match evaluator.evaluate() {
+                    Expr::String(s) => {
+                        println!("{}", s);
+                    }
+                    Expr::Number(n) => {
+                        println!("{}", n);
+                    }
+                    Expr::Bool(b) => {
+                        println!("{}", b);
+                    }
+                    Expr::Nil => {
+                        println!("nil");
+                    }
+                    _ => {
+                        print!("Invalid expression");
+                    }
+                }
             } else {
                 println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner
             }
