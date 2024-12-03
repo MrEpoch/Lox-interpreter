@@ -28,6 +28,41 @@ impl Evaluator {
                     _ => Expr::Nil,
                 }
             },
+            Expr::Binary { operator, left, right } => {
+                let left = self.evaluator(left);
+                let right = self.evaluator(right);
+
+                match operator.token_type {
+                    TokenType::MINUS => {
+                        match (left, right) {
+                            // Here i convert the left and right values to Expr::Number and use
+                            // them
+                            (Expr::Number(n1), Expr::Number(n2)) => Expr::Number(n1 - n2),
+                            _ => Expr::Nil,
+                        }
+                    },
+                    TokenType::SLASH => {
+                        match (left, right) {
+                            (Expr::Number(n1), Expr::Number(n2)) => Expr::Number(n1 / n2),
+                            _ => Expr::Nil,
+                        }
+                    },
+                    TokenType::STAR => {
+                        match (left, right) {
+                            (Expr::Number(n1), Expr::Number(n2)) => Expr::Number(n1 * n2),
+                            _ => Expr::Nil,
+                        }
+                    },
+                    TokenType::PLUS => {
+                        match (left, right) {
+                            (Expr::Number(n1), Expr::Number(n2)) => Expr::Number(n1 + n2),
+                            (Expr::String(s1), Expr::String(s2)) => Expr::String(format!("{}{}", s1, s2)),
+                            _ => Expr::Nil,
+                        }
+                    }
+                    _ => Expr::Nil,
+                }
+            }
             Expr::Unary { operator, right } => {
                 let evaluated = self.evaluator(right);
                 match operator.token_type {
