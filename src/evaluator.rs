@@ -1,4 +1,4 @@
-use crate::{Expr, Literal};
+use crate::{Expr, Literal, TokenType};
 
 
 pub struct Evaluator {
@@ -14,27 +14,6 @@ impl Evaluator {
 
     pub fn evaluate(&self) -> Expr {
         self.evaluator(&self.expression)
-            /*
-        match &self.expression {
-            Expr::Literal(l) => {
-                match l {
-                    Literal::Bool(b) => Expr::Bool(*b),
-                    Literal::String(s) => {
-                        Expr::String(s.clone())
-                    },
-                    Literal::Number(n) => Expr::Number(n.0),
-                    _ => Expr::Nil,
-                }
-            }
-            Expr::Grouping(exprs) => {
-                for e in exprs {
-                    self.evaluate();
-                }
-                Expr::Nil
-            },
-            _ => Expr::Nil,
-        }
-        */
     }
 
     fn evaluator(&self, expr: &Expr) -> Expr {
@@ -46,6 +25,28 @@ impl Evaluator {
                         Expr::String(s.clone())
                     },
                     Literal::Number(n) => Expr::Number(n.0),
+                    _ => Expr::Nil,
+                }
+            },
+            Expr::Unary { operator, right } => {
+                let evaluated = self.evaluator(right);
+                match operator.token_type {
+                    TokenType::BANG => {
+                        match evaluated {
+                            Expr::Bool(b) => Expr::Bool(!b),
+                            Expr::Unary { operator:_, right:_ } => {
+                                self.evaluator(&evaluated)
+                            },
+                            Expr::Nil => Expr::Bool(true),
+                            _ => Expr::Nil,
+                        }
+                    },
+                    TokenType::MINUS => {
+                        match evaluated {
+                            Expr::Number(n) => Expr::Number(-n),
+                            _ => Expr::Nil,
+                        }
+                    },
                     _ => Expr::Nil,
                 }
             }
