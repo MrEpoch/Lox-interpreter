@@ -59,6 +59,44 @@ impl Evaluator {
                             (Expr::String(s1), Expr::String(s2)) => Expr::String(format!("{}{}", s1, s2)),
                             _ => Expr::Nil,
                         }
+                    },
+                    TokenType::GREATER => {
+                        match (left, right) {
+                            (Expr::Number(n1), Expr::Number(n2)) => Expr::Bool(n1 > n2),
+                            _ => Expr::Nil,
+                        }
+                    },
+                    TokenType::GREATER_EQUAL => {
+                        match (left, right) {
+                            (Expr::Number(n1), Expr::Number(n2)) => Expr::Bool(n1 >= n2),
+                            _ => Expr::Nil,
+                        }
+                    },
+                    TokenType::LESS => {
+                        match (left, right) {
+                            (Expr::Number(n1), Expr::Number(n2)) => Expr::Bool(n1 < n2),
+                            _ => Expr::Nil,
+                        }
+                    },
+                    TokenType::LESS_EQUAL => {
+                        match (left, right) {
+                            (Expr::Number(n1), Expr::Number(n2)) => Expr::Bool(n1 <= n2),
+                            _ => Expr::Nil,
+                        }
+                    },
+                    TokenType::EQUAL_EQUAL => {
+                        if self.is_equal(left, right) {
+                            Expr::Bool(true)
+                        } else {
+                            Expr::Bool(false)
+                        }
+                    },
+                    TokenType::BANG_EQUAL => {
+                        if self.is_equal(left, right) {
+                            Expr::Bool(false)
+                        } else {
+                            Expr::Bool(true)
+                        }
                     }
                     _ => Expr::Nil,
                 }
@@ -90,6 +128,13 @@ impl Evaluator {
             },
             _ => Expr::Nil,
         }
+    }
+
+    fn is_equal(&self, left: Expr, right: Expr) -> bool {
+        if left == right {
+            return true;
+        }
+        return false;
     }
 }
 
