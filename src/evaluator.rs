@@ -1,3 +1,5 @@
+use std::process::exit;
+
 use crate::{Expr, Literal, TokenType};
 
 
@@ -117,7 +119,13 @@ impl Evaluator {
                     TokenType::MINUS => {
                         match evaluated {
                             Expr::Number(n) => Expr::Number(-n),
-                            _ => Expr::Nil,
+                            _ => {
+                                /*
+                                println!("Operand must be a number.");
+                                println!("[line {}]", operator.line);
+                                */
+                                exit(70);
+                            }
                         }
                     },
                     _ => Expr::Nil,
