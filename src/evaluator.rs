@@ -40,50 +40,50 @@ impl Evaluator {
                             // Here i convert the left and right values to Expr::Number and use
                             // them
                             (Expr::Number(n1), Expr::Number(n2)) => Expr::Number(n1 - n2),
-                            _ => Expr::Nil,
+                            _ => exit(70),
                         }
                     },
                     TokenType::SLASH => {
                         match (left, right) {
                             (Expr::Number(n1), Expr::Number(n2)) => Expr::Number(n1 / n2),
-                            _ => Expr::Nil,
+                            _ => exit(70),
                         }
                     },
                     TokenType::STAR => {
                         match (left, right) {
                             (Expr::Number(n1), Expr::Number(n2)) => Expr::Number(n1 * n2),
-                            _ => Expr::Nil,
+                            _ => exit(70),
                         }
                     },
                     TokenType::PLUS => {
                         match (left, right) {
                             (Expr::Number(n1), Expr::Number(n2)) => Expr::Number(n1 + n2),
                             (Expr::String(s1), Expr::String(s2)) => Expr::String(format!("{}{}", s1, s2)),
-                            _ => Expr::Nil,
+                            _ => exit(70),
                         }
                     },
                     TokenType::GREATER => {
                         match (left, right) {
                             (Expr::Number(n1), Expr::Number(n2)) => Expr::Bool(n1 > n2),
-                            _ => Expr::Nil,
+                            _ => exit(70),
                         }
                     },
                     TokenType::GREATER_EQUAL => {
                         match (left, right) {
                             (Expr::Number(n1), Expr::Number(n2)) => Expr::Bool(n1 >= n2),
-                            _ => Expr::Nil,
+                            _ => exit(70),
                         }
                     },
                     TokenType::LESS => {
                         match (left, right) {
                             (Expr::Number(n1), Expr::Number(n2)) => Expr::Bool(n1 < n2),
-                            _ => Expr::Nil,
+                            _ => exit(70),
                         }
                     },
                     TokenType::LESS_EQUAL => {
                         match (left, right) {
                             (Expr::Number(n1), Expr::Number(n2)) => Expr::Bool(n1 <= n2),
-                            _ => Expr::Nil,
+                            _ => exit(70),
                         }
                     },
                     TokenType::EQUAL_EQUAL => {
