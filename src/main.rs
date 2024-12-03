@@ -11,7 +11,7 @@ mod scanner;
 mod parser;
 mod evaluator;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
     String(String),
     Number((f64, usize)),
@@ -32,7 +32,7 @@ impl fmt::Display for TokenType {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TokenType {
     LEFT_PAREN,
     RIGHT_PAREN,
@@ -78,7 +78,7 @@ pub enum TokenType {
 
     EOF,
 }
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
@@ -97,7 +97,7 @@ impl Token {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq)]
 pub enum Expr {
     Bool(bool),
     Literal(Literal),
