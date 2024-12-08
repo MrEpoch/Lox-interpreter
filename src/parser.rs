@@ -5,12 +5,13 @@ use crate::{language_error, Expr, Literal, Token, TokenType};
 
 pub struct Parser {
     pub tokens: Vec<Token>,
+    pub statements: Vec<Expr>,
     current: usize,
 }
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, current: 0 }
+        Self { tokens, current: 0, statements: vec![] }
     }
 
     pub fn expression(&mut self) -> Expr {
@@ -108,8 +109,37 @@ impl Parser {
             return Expr::Grouping(vec![expr]);
         }
 
+
+        /*
         self.throw_error(self.peek().clone(), "Expect expression.");
+        */
         exit(65);
+    }
+
+    fn synchronize(&mut self) {
+        self.advance();
+
+        while !self.is_end() {
+            if self.tokens.get(self.current - 1).unwrap().token_type == TokenType::SEMICOLON {
+                return;
+            }
+
+            match self.tokens.get(self.current - 1).unwrap().token_type {
+                TokenType::CLASS
+                | TokenType::FUN
+                | TokenType::VAR
+                | TokenType::FOR
+                | TokenType::IF
+                | TokenType::WHILE
+                | TokenType::PRINT
+                | TokenType::RETURN => {
+                    return;
+                }
+                _ => {}
+            }
+
+            self.advance();
+        }
     }
 
     fn consume(&mut self, token_type: TokenType, message: &str) {
@@ -161,5 +191,35 @@ impl Parser {
         } else {
             self.tokens.get(self.current - 1).unwrap();
         }
+    }
+
+    pub fn parse(&mut self) {
+        let mut statement;
+        while !self.is_end() {
+            statement = self.statement();
+            self.statements.push(statement);
+        }
+    }
+
+    fn statement(&mut self) -> Expr {
+        if self.match_operators(vec![TokenType::PRINT]) {
+            self.print_statement()
+        } else {
+            self.expression_statement()
+        }     
+    }
+
+    fn print_statement(&mut self) -> Expr {
+        let value = self.expression();
+        self.consume(TokenType::SEMICOLON, "Expect ';' after value.");
+
+        value
+    }
+
+    fn expression_statement(&mut self) -> Expr {
+        let expr = self.expression();
+        self.consume(TokenType::SEMICOLON, "Expect ';' after expression.");
+
+        expr
     }
 }

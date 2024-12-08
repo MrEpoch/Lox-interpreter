@@ -7,9 +7,10 @@ use std::io::{self, Write};
 use std::process::exit;
 use std::sync::Mutex;
 
-mod scanner;
-mod parser;
 mod evaluator;
+mod parser;
+mod runner;
+mod scanner;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
@@ -17,7 +18,7 @@ pub enum Literal {
     Number((f64, usize)),
     Bool(bool),
     Null,
-    Nil
+    Nil,
 }
 
 impl fmt::Display for Literal {
@@ -113,7 +114,7 @@ pub enum Expr {
         right: Box<Expr>,
         left: Box<Expr>,
     },
-    Grouping(Vec<Expr>)
+    Grouping(Vec<Expr>),
 }
 
 impl<'a> fmt::Display for Expr {
@@ -127,9 +128,11 @@ impl<'a> fmt::Display for Expr {
             Expr::Unary { operator, right } => {
                 f.write_fmt(format_args!("{} {right}", operator.lexeme))
             }
-            Expr::Binary { operator, right, left } => {
-                f.write_fmt(format_args!("({} {left} {right}", operator.lexeme))
-            }
+            Expr::Binary {
+                operator,
+                right,
+                left,
+            } => f.write_fmt(format_args!("({} {left} {right}", operator.lexeme)),
             Expr::Grouping(_) => f.write_str("()"),
         }
     }
@@ -201,7 +204,7 @@ fn main() {
             } else {
                 println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner
             }
-        },
+        }
         "parse" => {
             let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
                 writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
@@ -215,13 +218,26 @@ fn main() {
                 let expressions = parser.expression();
                 match expressions {
                     Expr::Grouping(exprs) => {
-                        println!("{}", handle_grouping(exprs, &String::from("(group "), &String::from(")")).join(" "));
+                        println!(
+                            "{}",
+                            handle_grouping(exprs, &String::from("(group "), &String::from(")"))
+                                .join(" ")
+                        );
                     }
                     Expr::Number(n) => {
                         println!("{n}");
                     }
-                    Expr::Binary { operator, left, right } => {
-                        println!("({} {} {})", operator.lexeme, handle_match(*left, &String::from(""), &String::from("")), handle_match(*right, &String::from(""), &String::from("")));
+                    Expr::Binary {
+                        operator,
+                        left,
+                        right,
+                    } => {
+                        println!(
+                            "({} {} {})",
+                            operator.lexeme,
+                            handle_match(*left, &String::from(""), &String::from("")),
+                            handle_match(*right, &String::from(""), &String::from(""))
+                        );
                     }
                     Expr::Literal(l) => {
                         println!("{}", print_based_on_literal(&l));
@@ -242,7 +258,7 @@ fn main() {
             } else {
                 println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner
             }
-        },
+        }
         "evaluate" => {
             let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
                 writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
@@ -254,28 +270,48 @@ fn main() {
                 scanner.scan_tokens(&file_contents, &mut 0);
                 let mut parser = parser::Parser::new(scanner.tokens);
                 let expressions = parser.expression();
-                let evaluator = evaluator::Evaluator::new(expressions);
-                match evaluator.evaluate() {
-                    Expr::String(s) => {
-                        println!("{}", s);
-                    }
-                    Expr::Number(n) => {
-                        println!("{}", n);
-                    }
-                    Expr::Bool(b) => {
-                        println!("{}", b);
-                    }
-                    Expr::Nil => {
-                        println!("nil");
-                    }
-                    _ => {
-                        print!("Invalid expression");
+                let evaluator = evaluator::Evaluator::new(vec![expressions]);
+                for evaluated in evaluator.evaluate() {
+                    match evaluated {
+                        Expr::String(s) => {
+                            println!("{}", s);
+                        }
+                        Expr::Number(n) => {
+                            println!("{}", n);
+                        }
+                        Expr::Bool(b) => {
+                            println!("{}", b);
+                        }
+                        Expr::Nil => {
+                            println!("nil");
+                        }
+                        _ => {
+                            print!("Invalid expression");
+                        }
                     }
                 }
             } else {
                 println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner
             }
-        },
+        }
+        "run" => {
+            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
+                writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
+                String::new()
+            });
+
+            if !file_contents.is_empty() {
+                let mut scanner = scanner::Scanner::new();
+                scanner.scan_tokens(&file_contents, &mut 0);
+                let mut parser = parser::Parser::new(scanner.tokens);
+                parser.parse();
+                let evaluator = evaluator::Evaluator::new(parser.statements);
+                let runner = runner::Runner::new(evaluator.evaluate());
+                runner.interpret();
+            } else {
+                println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner
+            }
+        }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();
             return;
@@ -309,31 +345,47 @@ fn handle_grouping(exprs: Vec<Expr>, left_side: &String, right_side: &String) ->
 
 fn handle_match(expr: Expr, left_side: &String, right_side: &String) -> String {
     match expr {
-            Expr::Grouping(exprs) => {
-                format!("{left_side}{}{right_side}", handle_grouping(exprs, &format!("(group "), &format!(")")).join(" "))
-            }
-            Expr::Number(n) => {
-                format!("{left_side}{n}{right_side}")
-            }
-            Expr::Binary { operator, left, right } => {
-                format!("{left_side}({} {} {}){right_side}", operator.lexeme, handle_match(*left, &String::from(""), &String::from("")), handle_match(*right, &String::from(""), &String::from("")))
-            }
-            Expr::Literal(l) => {
-                format!("{left_side}{}{right_side}", print_based_on_literal(&l))
-            }
-            Expr::Unary { operator, right } => {
-                format!("{left_side}({} {}){right_side}", operator.lexeme, handle_match(*right, &String::from(""), &String::from("")))
-            }
-            Expr::String(s) => {
-                format!("{left_side}{s}{right_side}")
-            }
-            Expr::Nil => {
-                format!("{left_side}nil{right_side}")
-            }
-            _ => {
-                format!("Invalid expression")
-            }
+        Expr::Grouping(exprs) => {
+            format!(
+                "{left_side}{}{right_side}",
+                handle_grouping(exprs, &format!("(group "), &format!(")")).join(" ")
+            )
         }
+        Expr::Number(n) => {
+            format!("{left_side}{n}{right_side}")
+        }
+        Expr::Binary {
+            operator,
+            left,
+            right,
+        } => {
+            format!(
+                "{left_side}({} {} {}){right_side}",
+                operator.lexeme,
+                handle_match(*left, &String::from(""), &String::from("")),
+                handle_match(*right, &String::from(""), &String::from(""))
+            )
+        }
+        Expr::Literal(l) => {
+            format!("{left_side}{}{right_side}", print_based_on_literal(&l))
+        }
+        Expr::Unary { operator, right } => {
+            format!(
+                "{left_side}({} {}){right_side}",
+                operator.lexeme,
+                handle_match(*right, &String::from(""), &String::from(""))
+            )
+        }
+        Expr::String(s) => {
+            format!("{left_side}{s}{right_side}")
+        }
+        Expr::Nil => {
+            format!("{left_side}nil{right_side}")
+        }
+        _ => {
+            format!("Invalid expression")
+        }
+    }
 }
 
 fn get_from_unary(expr_unary: Expr) -> String {
@@ -341,8 +393,7 @@ fn get_from_unary(expr_unary: Expr) -> String {
         format!("({} {})", operator.lexeme, get_from_unary(*right))
     } else if let Expr::Literal(literal) = expr_unary {
         print_based_on_literal(&literal)
-    }
-    else {
+    } else {
         expr_unary.to_string()
     }
 }
