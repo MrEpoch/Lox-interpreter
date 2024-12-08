@@ -23,7 +23,9 @@ impl Evaluator {
         match expr {
             Expr::Literal(l) => match l {
                 Literal::Bool(b) => Expr::Bool(*b),
-                Literal::String(s) => Expr::String(s.clone()),
+                Literal::String(s) => {
+                    Expr::String(s.clone())
+                }
                 Literal::Number(n) => Expr::Number(n.0),
                 _ => Expr::Nil,
             },

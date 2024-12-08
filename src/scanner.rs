@@ -180,7 +180,7 @@ impl Scanner {
                             self.tokens.push(Token::new(
                                 TokenType::STRING,
                                 string.clone(),
-                                Option::from(if string.len() > 3 {
+                                Option::from(if string.len() > 1 {
                                     // Need to cut \ for string value "
                                     Literal::String(string[1..string.len() - 1].to_string())
                                 } else {
