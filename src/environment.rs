@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, process::exit};
 
 use crate::Expr;
 
@@ -22,9 +22,9 @@ impl Environment {
         if self.map.contains_key(name) {
             self.map.get(name)
         } else {
-            println!("Undefined variable '{name}'");
-            println!("[line {line}]");
-            None
+            // println!("Undefined variable '{name}'");
+            // println!("[line {line}]");
+            exit(70);
         }
     }
 }
