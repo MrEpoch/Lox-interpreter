@@ -31,7 +31,7 @@ impl Evaluator {
                 Expr::Print(Box::new(self.evaluator(e, enviroment)))
             }
             Expr::Var(t) => {
-                let val = enviroment.get(&t.lexeme).unwrap().clone();
+                let val = enviroment.get(&t.lexeme, t.line).unwrap().clone();
                 self.evaluator(&val, enviroment)
             },
             Expr::Variable { name, value } => {
