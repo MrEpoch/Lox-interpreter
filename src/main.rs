@@ -98,10 +98,11 @@ impl Token {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Bool(bool),
     Literal(Literal),
+    Print(Box<Expr>),
     Number(f64),
     Nil,
     String(String),
@@ -120,6 +121,7 @@ pub enum Expr {
 impl<'a> fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Expr::Print(expr) => f.write_fmt(format_args!("{expr}")),
             Expr::Bool(b) => f.write_fmt(format_args!("{}", b)),
             Expr::Nil => f.write_str("nil"),
             Expr::String(s) => f.write_fmt(format_args!("{s:?}")),
@@ -270,24 +272,22 @@ fn main() {
                 scanner.scan_tokens(&file_contents, &mut 0);
                 let mut parser = parser::Parser::new(scanner.tokens);
                 let expressions = parser.expression();
-                let evaluator = evaluator::Evaluator::new(vec![expressions]);
-                for evaluated in evaluator.evaluate() {
-                    match evaluated {
-                        Expr::String(s) => {
-                            println!("{}", s);
-                        }
-                        Expr::Number(n) => {
-                            println!("{}", n);
-                        }
-                        Expr::Bool(b) => {
-                            println!("{}", b);
-                        }
-                        Expr::Nil => {
-                            println!("nil");
-                        }
-                        _ => {
-                            print!("Invalid expression");
-                        }
+                let evaluator = evaluator::Evaluator::new(expressions);
+                match evaluator.evaluate() {
+                    Expr::String(s) => {
+                        println!("{}", s);
+                    }
+                    Expr::Number(n) => {
+                        println!("{}", n);
+                    }
+                    Expr::Bool(b) => {
+                        println!("{}", b);
+                    }
+                    Expr::Nil => {
+                        println!("nil");
+                    }
+                    _ => {
+                        print!("Invalid expression");
                     }
                 }
             } else {
@@ -305,9 +305,13 @@ fn main() {
                 scanner.scan_tokens(&file_contents, &mut 0);
                 let mut parser = parser::Parser::new(scanner.tokens);
                 parser.parse();
-                let evaluator = evaluator::Evaluator::new(parser.statements);
-                let runner = runner::Runner::new(evaluator.evaluate());
-                runner.interpret();
+                let mut evaluator;
+                let mut runner;
+                for s in parser.statements.iter() {
+                    evaluator = evaluator::Evaluator::new(s.clone());
+                    runner = runner::Runner::new(evaluator.evaluate());
+                    runner.interpret();
+                }
             } else {
                 println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner
             }

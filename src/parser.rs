@@ -41,7 +41,7 @@ impl Parser {
 
         while self.match_operators(vec![TokenType::GREATER, TokenType::GREATER_EQUAL, TokenType::LESS, TokenType::LESS_EQUAL]) {
             operator = self.tokens.get(self.current - 1).unwrap().clone();
-            right = self.factor();
+            right = self.term();
             expr = Expr::Binary { operator, left: Box::new(expr), right: Box::new(right) };
         }
 
@@ -110,9 +110,7 @@ impl Parser {
         }
 
 
-        /*
-        self.throw_error(self.peek().clone(), "Expect expression.");
-        */
+        // println!("Expect expression.");
         exit(65);
     }
 
@@ -148,10 +146,6 @@ impl Parser {
             return;
         }
 
-        exit(65);
-    }
-
-    fn throw_error(&self, token: Token, message: &str) {
         exit(65);
     }
 
@@ -203,7 +197,7 @@ impl Parser {
 
     fn statement(&mut self) -> Expr {
         if self.match_operators(vec![TokenType::PRINT]) {
-            self.print_statement()
+            Expr::Print(Box::new(self.print_statement()))
         } else {
             self.expression_statement()
         }     

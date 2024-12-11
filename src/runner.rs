@@ -1,35 +1,37 @@
-use std::process::exit;
 
-use crate::{Expr, Literal, TokenType};
+use crate::Expr;
 
 pub struct Runner {
-    pub statements: Vec<Expr>,
+    pub statement: Expr,
 }
 
 impl Runner {
-    pub fn new(statements: Vec<Expr>) -> Self {
-        Self { statements }
+    pub fn new(statement: Expr) -> Self {
+        Self { statement }
     }
 
     pub fn interpret(&self) {
-        for statement in &self.statements {
-            match statement {
-                Expr::String(s) => {
-                    println!("{}", s);
-                }
-                Expr::Number(n) => {
-                    println!("{}", n);
-                }
-                Expr::Bool(b) => {
-                    println!("{}", b);
-                }
-                Expr::Nil => {
-                    println!("nil");
-                }
-                _ => {
-                    print!("Invalid expression");
+        match &self.statement {
+            Expr::Print(e) => {
+                match &**e {
+                    Expr::String(s) => {
+                        println!("{}", s);
+                    }
+                    Expr::Number(n) => {
+                        println!("{}", n);
+                    }
+                    Expr::Bool(b) => {
+                        println!("{}", b);
+                    }
+                    Expr::Nil => {
+                        println!("nil");
+                    }
+                    _ => {
+                        print!("Invalid expression");
+                    }
                 }
             }
+            _ => {}
         }
     }
 }
