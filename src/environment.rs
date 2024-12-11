@@ -15,7 +15,12 @@ impl Environment {
     }
 
     pub fn define(&mut self, name: &str, value: Expr) {
-        self.map.insert(name.to_string(), value);
+        if self.map.contains_key(name) {
+            self.map.remove(name);
+            self.map.insert(name.to_string(), value);
+        } else {
+            self.map.insert(name.to_string(), value);
+        }
     }
 
     pub fn get(&self, name: &str, line: u32) -> Option<&Expr> {
