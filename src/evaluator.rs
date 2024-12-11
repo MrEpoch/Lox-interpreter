@@ -1,25 +1,23 @@
 use std::process::exit;
 
-use crate::{Expr, Literal, TokenType};
+use crate::{environment, Expr, Literal, TokenType};
 
-pub struct Evaluator {
-    pub statement: Expr,
-}
+pub struct Evaluator;
 
 impl Evaluator {
-    pub fn new(statement: Expr) -> Self {
-        Self { statement }
+    pub fn new() -> Self {
+        Self {}
     }
 
-    pub fn evaluate(&self) -> Expr {
-        self.evaluator(&self.statement)
+    pub fn evaluate(&self, statement: Expr, enviroment: &mut environment::Environment) -> Expr {
+        self.evaluator(&statement, enviroment)
     }
 
     fn invalid_error(&self) -> Expr {
         exit(70)
     }
 
-    fn evaluator(&self, expr: &Expr) -> Expr {
+    fn evaluator(&self, expr: &Expr, enviroment: &mut environment::Environment) -> Expr {
         match expr {
             Expr::Literal(l) => match l {
                 Literal::Bool(b) => Expr::Bool(*b),
@@ -30,15 +28,23 @@ impl Evaluator {
                 _ => Expr::Nil,
             },
             Expr::Print(e) => {
-                Expr::Print(Box::new(self.evaluator(e)))
+                Expr::Print(Box::new(self.evaluator(e, enviroment)))
+            }
+            Expr::Var(t) => {
+                let val = enviroment.get(&t.lexeme).unwrap().clone();
+                self.evaluator(&val, enviroment)
+            },
+            Expr::Variable { name, value } => {
+                enviroment.define(name, *value.clone());
+                Expr::Variable { name: name.clone(), value: Box::new(self.evaluator(value, enviroment)) }
             }
             Expr::Binary {
                 operator,
                 left,
                 right,
             } => {
-                let left = self.evaluator(left);
-                let right = self.evaluator(right);
+                let left = self.evaluator(left, enviroment);
+                let right = self.evaluator(right, enviroment);
 
                 match operator.token_type {
                     TokenType::MINUS => {
@@ -100,14 +106,14 @@ impl Evaluator {
                 }
             }
             Expr::Unary { operator, right } => {
-                let evaluated = self.evaluator(right);
+                let evaluated = self.evaluator(right, enviroment);
                 match operator.token_type {
                     TokenType::BANG => match evaluated {
                         Expr::Bool(b) => Expr::Bool(!b),
                         Expr::Unary {
                             operator: _,
                             right: _,
-                        } => self.evaluator(&evaluated),
+                        } => self.evaluator(&evaluated, enviroment),
                         Expr::Nil => Expr::Bool(true),
                         _ => Expr::Nil,
                     },
@@ -126,7 +132,7 @@ impl Evaluator {
                     _ => Expr::Nil,
                 }
             }
-            Expr::Grouping(exprs) => self.evaluator(&exprs[0]),
+            Expr::Grouping(exprs) => self.evaluator(&exprs[0], enviroment),
             _ => Expr::Nil,
         }
     }

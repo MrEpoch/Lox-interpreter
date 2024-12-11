@@ -1,7 +1,6 @@
 use std::process::exit;
 
-use crate::{language_error, Expr, Literal, Token, TokenType};
-
+use crate::{Expr, Literal, Token, TokenType};
 
 pub struct Parser {
     pub tokens: Vec<Token>,
@@ -103,6 +102,10 @@ impl Parser {
             return Expr::Literal(operator.clone().literal.unwrap());
         }
 
+        if self.match_operators(vec![TokenType::IDENTIFIER]) {
+            return Expr::Var(self.tokens.get(self.current - 1).unwrap().clone());
+        }
+
         if self.match_operators(vec![TokenType::LEFT_PAREN]) {
             let expr = self.expression();
             self.consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
@@ -140,10 +143,9 @@ impl Parser {
         }
     }
 
-    fn consume(&mut self, token_type: TokenType, message: &str) {
+    fn consume(&mut self, token_type: TokenType, message: &str) -> &Token {
         if self.check(token_type) {
-            self.advance();
-            return;
+            return self.advance();
         }
 
         exit(65);
@@ -179,20 +181,49 @@ impl Parser {
         self.tokens.get(self.current).unwrap()
     }
 
-    fn advance(&mut self) {
+    fn advance(&mut self) -> &Token {
         if !self.is_end() {
             self.current += 1;
-        } else {
-            self.tokens.get(self.current - 1).unwrap();
         }
+        self.tokens.get(self.current - 1).unwrap()
     }
 
     pub fn parse(&mut self) {
-        let mut statement;
+        let mut declaration;
         while !self.is_end() {
-            statement = self.statement();
-            self.statements.push(statement);
+            declaration = self.declaration();
+            self.statements.push(declaration);
         }
+    }
+
+    fn declaration(&mut self) -> Expr {
+        if self.match_operators(vec![TokenType::VAR]) {
+            match self.var_declaration() {
+                Some(expr) => expr,
+                None => {
+                    self.synchronize();
+                    Expr::Nil
+                },
+            }
+        } else {
+            self.statement()
+        }
+    }
+
+    fn var_declaration(&mut self) -> Option<Expr> {
+        let variable = self.consume(TokenType::IDENTIFIER, "Expect variable name.");
+        let variable_name: String;
+
+        let mut initializer = Expr::Nil;
+        variable_name = String::from(variable.lexeme.clone());
+
+        if self.match_operators(vec![TokenType::EQUAL]) {
+            initializer = self.expression();
+        }
+
+        self.consume(TokenType::SEMICOLON, "Expect ';' after variable declaration.");
+
+        Some(Expr::Variable{ name: variable_name, value: Box::new(initializer) })
     }
 
     fn statement(&mut self) -> Expr {

@@ -11,6 +11,7 @@ mod evaluator;
 mod parser;
 mod runner;
 mod scanner;
+mod environment;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
@@ -103,6 +104,8 @@ pub enum Expr {
     Bool(bool),
     Literal(Literal),
     Print(Box<Expr>),
+    Variable{ name: String, value: Box<Expr> },
+    Var(Token),
     Number(f64),
     Nil,
     String(String),
@@ -121,6 +124,8 @@ pub enum Expr {
 impl<'a> fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Expr::Var(expr) => f.write_fmt(format_args!("{expr}")),
+            Expr::Variable { name, value } => f.write_fmt(format_args!("{name} = {value}")),
             Expr::Print(expr) => f.write_fmt(format_args!("{expr}")),
             Expr::Bool(b) => f.write_fmt(format_args!("{}", b)),
             Expr::Nil => f.write_str("nil"),
@@ -271,9 +276,10 @@ fn main() {
                 let mut scanner = scanner::Scanner::new();
                 scanner.scan_tokens(&file_contents, &mut 0);
                 let mut parser = parser::Parser::new(scanner.tokens);
-                let expressions = parser.expression();
-                let evaluator = evaluator::Evaluator::new(expressions);
-                match evaluator.evaluate() {
+                let expression = parser.expression();
+                let evaluator = evaluator::Evaluator::new();
+                let mut enviroment = environment::Environment::new();
+                match evaluator.evaluate(expression, &mut enviroment) {
                     Expr::String(s) => {
                         println!("{}", s);
                     }
@@ -305,12 +311,10 @@ fn main() {
                 scanner.scan_tokens(&file_contents, &mut 0);
                 let mut parser = parser::Parser::new(scanner.tokens);
                 parser.parse();
-                let mut evaluator;
-                let mut runner;
+                let evaluator = evaluator::Evaluator::new();
+                let mut enviroment = environment::Environment::new();
                 for s in parser.statements.iter() {
-                    evaluator = evaluator::Evaluator::new(s.clone());
-                    runner = runner::Runner::new(evaluator.evaluate());
-                    runner.interpret();
+                    runner::interpret(evaluator.evaluate(s.clone(), &mut enviroment), &mut enviroment);
                 }
             } else {
                 println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner

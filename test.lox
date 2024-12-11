@@ -1,2 +1,3 @@
-print "58" + "baz";
-print false * (91 + 15);
+var a = "55" + "a";
+var b = "ca";
+print a + b;
