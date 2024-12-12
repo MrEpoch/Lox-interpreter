@@ -1,4 +1,8 @@
 var a = "a";
+var a = "5";
+var a = "a";
 var a = "b";
+var a = 7;
+var a = a;
 var a = a;
 print a;

@@ -1,6 +1,6 @@
 use std::process::exit;
 
-use crate::{environment, Expr, Literal, TokenType};
+use crate::{environment, Expr, Literal, Token, TokenType};
 
 pub struct Evaluator;
 
@@ -35,8 +35,21 @@ impl Evaluator {
                 self.evaluator(&val, enviroment)
             },
             Expr::Variable { name, value } => {
-                enviroment.define(name, *value.clone());
-                Expr::Variable { name: name.clone(), value: Box::new(self.evaluator(value, enviroment)) }
+                let mut value_def = self.evaluator(value, enviroment);
+                let mut is_same = false;
+                value_def = match *value.clone() {
+                    Expr::Var(t) => {
+                        let val = enviroment.get(&t.lexeme, t.line).unwrap().clone();
+                        is_same = name == &t.lexeme;
+                        val
+                    }
+                    _ => *value.clone()
+                };
+
+                if !is_same {
+                    enviroment.define(name, value_def.clone());
+                }
+                Expr::Variable { name: name.clone(), value: Box::new(value_def) }
             }
             Expr::Binary {
                 operator,
