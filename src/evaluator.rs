@@ -32,6 +32,27 @@ impl Evaluator {
             Expr::Print(e) => {
                 Expr::Print(Box::new(self.evaluator(e, enviroment)))
             }
+            Expr::Logical(left, right, operator) => {
+                let left = self.evaluator(left, enviroment);
+
+                match operator {
+                    TokenType::OR => {
+                        if self.is_truthy(&left) {
+                            left
+                        } else {
+                            self.evaluator(right, enviroment)
+                        }
+                    }
+                    TokenType::AND => {
+                        if !self.is_truthy(&left) {
+                            left
+                        } else {
+                            self.evaluator(right, enviroment)
+                        }
+                    }
+                    _ => self.invalid_error(),
+                }
+            }
             Expr::Var(t) => {
                 let val = enviroment.get(&t.lexeme, t.line).unwrap().clone();
                 // self.evaluator(&val, enviroment)
@@ -59,6 +80,15 @@ impl Evaluator {
                 }
                 enviroment.map = environment_block.enclosing.unwrap().map;
                 Expr::Block(returning_vec)
+            }
+            Expr::If { condition, then_branch, else_branch } => {
+                if self.is_truthy(&self.evaluator(condition, enviroment)) {
+                    self.evaluator(then_branch, enviroment)
+                } else if let Some(else_branch) = else_branch {
+                    self.evaluator(else_branch, enviroment)
+                } else {
+                    Expr::Nil
+                }
             }
             Expr::Variable { name, value } => {
                 let value_def = self.evaluator(value, enviroment);
@@ -161,6 +191,14 @@ impl Evaluator {
             }
             Expr::Grouping(exprs) => self.evaluator(&exprs[0], enviroment),
             _ => Expr::Nil,
+        }
+    }
+
+    fn is_truthy(&self, expr: &Expr) -> bool {
+        match expr {
+            &Expr::Nil => false,
+            &Expr::Bool(b) => b,
+            _ => true,
         }
     }
 

@@ -102,11 +102,17 @@ impl Token {
 #[derive(Debug, PartialEq, Clone)]
 pub enum Expr {
     Bool(bool),
+    Logical(Box<Expr>, Box<Expr>, TokenType),
     Literal(Literal),
     Print(Box<Expr>),
     Variable{ name: String, value: Box<Expr> },
     Block(Vec<Expr>),
     Var(Token),
+    If {
+        condition: Box<Expr>,
+        then_branch: Box<Expr>,
+        else_branch: Option<Box<Expr>>,
+    },
     Assign { name: String, value: Box<Expr> },
     Number(f64),
     Nil,
@@ -126,6 +132,8 @@ pub enum Expr {
 impl<'a> fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Expr::Logical(a, b, c) => f.write_fmt(format_args!("{a} {b} {c}")),
+            Expr::If { condition, then_branch, else_branch } => f.write_fmt(format_args!("if {} {} {}", *condition, *then_branch, else_branch.as_ref().unwrap())),
             Expr::Block(vec_expr) => {
                 for expr in vec_expr {
                     f.write_fmt(format_args!("{expr}"))?;

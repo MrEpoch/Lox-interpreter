@@ -13,8 +13,31 @@ impl Parser {
         Self { tokens, current: 0, statements: vec![] }
     }
 
+    fn and (&mut self) -> Expr {
+        let mut expr = self.equality();
+
+        while self.match_operators(vec![TokenType::AND]) {
+            let operator = self.tokens.get(self.current - 1).unwrap().clone();
+            let right = self.and();
+            expr = Expr::Logical(Box::new(expr), Box::new(right), operator.clone().token_type);
+        }
+        expr
+    }
+
+    fn or(&mut self) -> Expr {
+        let mut expr = self.and();
+
+        while self.match_operators(vec![TokenType::OR]) {
+            let operator = self.tokens.get(self.current - 1).unwrap().clone();
+            let right = self.and();
+            expr = Expr::Logical(Box::new(expr), Box::new(right), operator.clone().token_type);
+        }
+
+        expr
+    }
+
     fn assignment(&mut self) -> Expr {
-        let expr = self.equality();
+        let expr = self.or();
 
         if self.match_operators(vec![TokenType::EQUAL]) {
             //  In case of error   let equals = self.tokens.get(self.current - 1).unwrap().clone();
@@ -249,6 +272,11 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Expr {
+
+        if self.match_operators(vec![TokenType::IF]) {
+            return self.if_statement();
+        }
+
         if self.match_operators(vec![TokenType::PRINT]) {
             return Expr::Print(Box::new(self.print_statement()));
         }
@@ -258,6 +286,25 @@ impl Parser {
         }
 
         self.expression_statement()
+    }
+
+    fn if_statement(&mut self) -> Expr {
+        self.consume(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
+        let condition = self.expression();
+        self.consume(TokenType::RIGHT_PAREN, "Expect ')' after 'if'.");
+
+        let then_branch = self.statement();
+        let mut else_branch: Option<Box<Expr>> = None;
+
+        if self.match_operators(vec![TokenType::ELSE]) {
+            else_branch = Some(Box::new(self.statement()));
+        }
+
+        Expr::If {
+            condition: Box::new(condition),
+            then_branch: Box::new(then_branch),
+            else_branch,
+        }
     }
 
     fn block(&mut self) -> Vec<Expr> {
