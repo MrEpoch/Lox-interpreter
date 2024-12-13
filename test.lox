@@ -1,9 +1,12 @@
 {
   var world = "hi";
+  var hi = "hi";
   print world;
   {
+    var hi = 5;
     world = "hello";
     print world;
   }
+  print hi;
   print world;
 }

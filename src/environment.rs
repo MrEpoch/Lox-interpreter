@@ -4,7 +4,7 @@ use crate::Expr;
 
 #[derive(Clone)]
 pub struct Environment {
-    map: HashMap<String, Expr>,
+    pub map: HashMap<String, Expr>,
     pub enclosing: Option<Box<Environment>>,
 }
 

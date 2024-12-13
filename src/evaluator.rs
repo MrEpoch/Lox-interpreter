@@ -50,16 +50,14 @@ impl Evaluator {
                 value
             }
             Expr::Block(vec) => {
-                let prev_environment = enviroment.enclosing.clone();
-                let environment_block = environment::Environment::new();
-                enviroment.enclosing = Some(Box::new(environment_block));
-
+                let mut environment_block = environment::Environment::new();
+                environment_block.enclosing = Some(Box::new(enviroment.clone()));
                 let mut returning_vec = vec![];
 
                 for expr in vec {
-                    returning_vec.push(self.evaluator(expr, enviroment));
+                    returning_vec.push(self.evaluator(expr, &mut environment_block));
                 }
-                enviroment.enclosing = prev_environment;
+                enviroment.map = environment_block.enclosing.unwrap().map;
                 Expr::Block(returning_vec)
             }
             Expr::Variable { name, value } => {
