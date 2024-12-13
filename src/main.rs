@@ -106,6 +106,7 @@ pub enum Expr {
     Print(Box<Expr>),
     Variable{ name: String, value: Box<Expr> },
     Var(Token),
+    Assign { name: String, value: Box<Expr> },
     Number(f64),
     Nil,
     String(String),
@@ -124,6 +125,7 @@ pub enum Expr {
 impl<'a> fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Expr::Assign { name, value } => f.write_fmt(format_args!("{name} = {value}")),
             Expr::Var(expr) => f.write_fmt(format_args!("{expr}")),
             Expr::Variable { name, value } => f.write_fmt(format_args!("{name} = {value}")),
             Expr::Print(expr) => f.write_fmt(format_args!("{expr}")),

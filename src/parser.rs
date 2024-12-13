@@ -13,8 +13,30 @@ impl Parser {
         Self { tokens, current: 0, statements: vec![] }
     }
 
+    fn assignment(&mut self) -> Expr {
+        let expr = self.equality();
+
+        if self.match_operators(vec![TokenType::EQUAL]) {
+            //  In case of error   let equals = self.tokens.get(self.current - 1).unwrap().clone();
+            let value = self.assignment();
+
+            match &expr {
+                Expr::Var(t) => {
+                    return Expr::Assign { name: String::from(t.lexeme.clone()), value: Box::new(value) };
+                }
+                _ => {
+                    // println!("err");
+                    // Error
+                    exit(70)
+                }
+            }
+        }
+
+        expr
+    }
+
     pub fn expression(&mut self) -> Expr {
-        self.equality()
+        self.assignment()
     }
 
     // !=, ==

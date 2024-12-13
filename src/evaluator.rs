@@ -32,23 +32,24 @@ impl Evaluator {
             }
             Expr::Var(t) => {
                 let val = enviroment.get(&t.lexeme, t.line).unwrap().clone();
-                self.evaluator(&val, enviroment)
-            },
-            Expr::Variable { name, value } => {
-                let mut value_def = self.evaluator(value, enviroment);
-                let mut is_same = false;
-                value_def = match *value.clone() {
-                    Expr::Var(t) => {
-                        let val = enviroment.get(&t.lexeme, t.line).unwrap().clone();
-                        is_same = name == &t.lexeme;
+                // self.evaluator(&val, enviroment)
+                match &val {
+                    Expr::Literal(t) => {
+                        self.evaluator(&val, enviroment)
+                    }
+                    _ => {
                         val
                     }
-                    _ => *value.clone()
-                };
-
-                if !is_same {
-                    enviroment.define(name, value_def.clone());
                 }
+            },
+            Expr::Assign { name, value } => {
+                let value = self.evaluator(value, enviroment);
+                enviroment.assign(name, value.clone());
+                value
+            }
+            Expr::Variable { name, value } => {
+                let value_def = self.evaluator(value, enviroment);
+                enviroment.define(name, value_def.clone());
                 Expr::Variable { name: name.clone(), value: Box::new(value_def) }
             }
             Expr::Binary {
