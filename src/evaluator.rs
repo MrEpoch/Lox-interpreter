@@ -60,7 +60,6 @@ impl Evaluator {
                     returning_vec.push(self.evaluator(expr, enviroment));
                 }
                 enviroment.enclosing = prev_environment;
-                println!("c {:?}", returning_vec);
                 Expr::Block(returning_vec)
             }
             Expr::Variable { name, value } => {

@@ -2,7 +2,8 @@
   var world = "hi";
   print world;
   {
-    var world = "hello";
+    world = "hello";
     print world;
   }
+  print world;
 }

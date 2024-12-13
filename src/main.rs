@@ -288,7 +288,7 @@ fn main() {
                 let expression = parser.expression();
                 let evaluator = evaluator::Evaluator::new();
                 let mut enviroment = environment::Environment::new();
-                match evaluator.evaluate(expression, &mut enviroment) {
+                match evaluator.evaluate(&expression, &mut enviroment) {
                     Expr::String(s) => {
                         println!("{}", s);
                     }
