@@ -250,10 +250,26 @@ impl Parser {
 
     fn statement(&mut self) -> Expr {
         if self.match_operators(vec![TokenType::PRINT]) {
-            Expr::Print(Box::new(self.print_statement()))
-        } else {
-            self.expression_statement()
-        }     
+            return Expr::Print(Box::new(self.print_statement()));
+        }
+
+        if self.match_operators(vec![TokenType::LEFT_BRACE]) {
+            return Expr::Block(self.block());
+        }
+
+        self.expression_statement()
+    }
+
+    fn block(&mut self) -> Vec<Expr> {
+        let mut statements = vec![];
+
+        while !self.check(TokenType::RIGHT_BRACE) && !self.is_end() {
+            statements.push(self.declaration());
+        }
+
+        self.consume(TokenType::RIGHT_BRACE, "Expect '}' after block.");
+
+        statements
     }
 
     fn print_statement(&mut self) -> Expr {

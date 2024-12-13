@@ -105,6 +105,7 @@ pub enum Expr {
     Literal(Literal),
     Print(Box<Expr>),
     Variable{ name: String, value: Box<Expr> },
+    Block(Vec<Expr>),
     Var(Token),
     Assign { name: String, value: Box<Expr> },
     Number(f64),
@@ -125,6 +126,12 @@ pub enum Expr {
 impl<'a> fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Expr::Block(vec_expr) => {
+                for expr in vec_expr {
+                    f.write_fmt(format_args!("{expr}"))?;
+                }
+                Ok(())
+            },
             Expr::Assign { name, value } => f.write_fmt(format_args!("{name} = {value}")),
             Expr::Var(expr) => f.write_fmt(format_args!("{expr}")),
             Expr::Variable { name, value } => f.write_fmt(format_args!("{name} = {value}")),
@@ -316,7 +323,8 @@ fn main() {
                 let evaluator = evaluator::Evaluator::new();
                 let mut enviroment = environment::Environment::new();
                 for s in parser.statements.iter() {
-                    runner::interpret(evaluator.evaluate(s.clone(), &mut enviroment), &mut enviroment);
+                    let evaluated = evaluator.evaluate(s, &mut enviroment);
+                    parse_eval_inter(evaluated, &mut enviroment);
                 }
             } else {
                 println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner
@@ -327,6 +335,18 @@ fn main() {
             return;
         }
     }
+}
+
+fn parse_eval_inter(evaluated: Expr, enviroment: &mut environment::Environment) {
+    match evaluated {
+        Expr::Block(exprs) => {
+            for e in exprs {
+                parse_eval_inter(e, enviroment);
+            }
+        }
+       _ => runner::interpret(evaluated, enviroment), 
+    }
+
 }
 
 fn print_based_on_literal(literal: &Literal) -> String {

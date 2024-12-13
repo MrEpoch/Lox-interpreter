@@ -2,14 +2,16 @@ use std::{collections::HashMap, process::exit};
 
 use crate::Expr;
 
-
+#[derive(Clone)]
 pub struct Environment {
     map: HashMap<String, Expr>,
+    pub enclosing: Option<Box<Environment>>,
 }
 
 impl Environment {
     pub fn new() -> Self {
         Self {
+            enclosing: None,
             map: HashMap::new(),
         }
     }
@@ -18,7 +20,15 @@ impl Environment {
         if self.map.contains_key(name) {
             self.map.remove(name);
             self.map.insert(name.to_string(), value);
+            return;
         }
+
+        if let Some(enclosing) = &mut self.enclosing {
+            enclosing.assign(name, value);
+            return;
+        }
+
+        exit(70);
     }
 
     pub fn define(&mut self, name: &str, value: Expr) {
@@ -36,11 +46,14 @@ impl Environment {
 
     pub fn get(&self, name: &str, line: u32) -> Option<&Expr> {
         if self.check_definition(name) {
-            self.map.get(name)
-        } else {
-            // println!("Undefined variable '{name}'");
-            // println!("[line {line}]");
-            exit(70);
+            return self.map.get(name)
         }
+
+        if let Some(enclosing) = &self.enclosing {
+            return enclosing.get(name, line);
+        }
+        // println!("Undefined variable '{name}'");
+        // println!("[line {line}]");
+        exit(70);
     }
 }

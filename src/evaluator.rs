@@ -2,14 +2,16 @@ use std::process::exit;
 
 use crate::{environment, Expr, Literal, Token, TokenType};
 
-pub struct Evaluator;
+pub struct Evaluator {
+}
 
 impl Evaluator {
     pub fn new() -> Self {
-        Self {}
+        Self {
+        }
     }
 
-    pub fn evaluate(&self, statement: Expr, enviroment: &mut environment::Environment) -> Expr {
+    pub fn evaluate(&self, statement: &Expr, enviroment: &mut environment::Environment) -> Expr {
         self.evaluator(&statement, enviroment)
     }
 
@@ -46,6 +48,20 @@ impl Evaluator {
                 let value = self.evaluator(value, enviroment);
                 enviroment.assign(name, value.clone());
                 value
+            }
+            Expr::Block(vec) => {
+                let prev_environment = enviroment.enclosing.clone();
+                let environment_block = environment::Environment::new();
+                enviroment.enclosing = Some(Box::new(environment_block));
+
+                let mut returning_vec = vec![];
+
+                for expr in vec {
+                    returning_vec.push(self.evaluator(expr, enviroment));
+                }
+                enviroment.enclosing = prev_environment;
+                println!("c {:?}", returning_vec);
+                Expr::Block(returning_vec)
             }
             Expr::Variable { name, value } => {
                 let value_def = self.evaluator(value, enviroment);
