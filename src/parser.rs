@@ -10,10 +10,14 @@ pub struct Parser {
 
 impl Parser {
     pub fn new(tokens: Vec<Token>) -> Self {
-        Self { tokens, current: 0, statements: vec![] }
+        Self {
+            tokens,
+            current: 0,
+            statements: vec![],
+        }
     }
 
-    fn and (&mut self) -> Expr {
+    fn and(&mut self) -> Expr {
         let mut expr = self.equality();
 
         while self.match_operators(vec![TokenType::AND]) {
@@ -45,7 +49,10 @@ impl Parser {
 
             match &expr {
                 Expr::Var(t) => {
-                    return Expr::Assign { name: String::from(t.lexeme.clone()), value: Box::new(value) };
+                    return Expr::Assign {
+                        name: String::from(t.lexeme.clone()),
+                        value: Box::new(value),
+                    };
                 }
                 _ => {
                     // println!("err");
@@ -71,7 +78,11 @@ impl Parser {
         while self.match_operators(vec![TokenType::BANG_EQUAL, TokenType::EQUAL_EQUAL]) {
             operator = self.tokens.get(self.current - 1).unwrap().clone();
             right = self.comparison();
-            expr = Expr::Binary { operator, left: Box::new(expr), right: Box::new(right) };
+            expr = Expr::Binary {
+                operator,
+                left: Box::new(expr),
+                right: Box::new(right),
+            };
         }
 
         expr
@@ -83,10 +94,19 @@ impl Parser {
         let mut operator: Token;
         let mut right: Expr;
 
-        while self.match_operators(vec![TokenType::GREATER, TokenType::GREATER_EQUAL, TokenType::LESS, TokenType::LESS_EQUAL]) {
+        while self.match_operators(vec![
+            TokenType::GREATER,
+            TokenType::GREATER_EQUAL,
+            TokenType::LESS,
+            TokenType::LESS_EQUAL,
+        ]) {
             operator = self.tokens.get(self.current - 1).unwrap().clone();
             right = self.term();
-            expr = Expr::Binary { operator, left: Box::new(expr), right: Box::new(right) };
+            expr = Expr::Binary {
+                operator,
+                left: Box::new(expr),
+                right: Box::new(right),
+            };
         }
 
         expr
@@ -101,7 +121,11 @@ impl Parser {
         while self.match_operators(vec![TokenType::MINUS, TokenType::PLUS]) {
             operator = self.tokens.get(self.current - 1).unwrap().clone();
             right = self.factor();
-            expr = Expr::Binary { operator, left: Box::new(expr), right: Box::new(right) };
+            expr = Expr::Binary {
+                operator,
+                left: Box::new(expr),
+                right: Box::new(right),
+            };
         }
 
         expr
@@ -116,7 +140,11 @@ impl Parser {
         while self.match_operators(vec![TokenType::SLASH, TokenType::STAR]) {
             operator = self.tokens.get(self.current - 1).unwrap().clone();
             right = self.unary();
-            expr = Expr::Binary { operator, left: Box::new(expr), right: Box::new(right) };
+            expr = Expr::Binary {
+                operator,
+                left: Box::new(expr),
+                right: Box::new(right),
+            };
         }
 
         expr
@@ -127,7 +155,10 @@ impl Parser {
         if self.match_operators(vec![TokenType::BANG, TokenType::MINUS]) {
             let operator = self.tokens.get(self.current - 1).unwrap().clone();
             let right = self.unary();
-            Expr::Unary { operator: operator.clone(), right: Box::new(right) }
+            Expr::Unary {
+                operator: operator.clone(),
+                right: Box::new(right),
+            }
         } else {
             self.primary()
         }
@@ -156,7 +187,6 @@ impl Parser {
             self.consume(TokenType::RIGHT_PAREN, "Expect ')' after expression.");
             return Expr::Grouping(vec![expr]);
         }
-
 
         // println!("Expect expression.");
         exit(65);
@@ -201,7 +231,7 @@ impl Parser {
             if self.check(token_type) {
                 self.advance();
                 return true;
-            } 
+            }
         }
         false
     }
@@ -248,7 +278,7 @@ impl Parser {
                 None => {
                     self.synchronize();
                     Expr::Nil
-                },
+                }
             }
         } else {
             self.statement()
@@ -266,13 +296,18 @@ impl Parser {
             initializer = self.expression();
         }
 
-        self.consume(TokenType::SEMICOLON, "Expect ';' after variable declaration.");
+        self.consume(
+            TokenType::SEMICOLON,
+            "Expect ';' after variable declaration.",
+        );
 
-        Some(Expr::Variable{ name: variable_name, value: Box::new(initializer) })
+        Some(Expr::Variable {
+            name: variable_name,
+            value: Box::new(initializer),
+        })
     }
 
     fn statement(&mut self) -> Expr {
-
         if self.match_operators(vec![TokenType::IF]) {
             return self.if_statement();
         }

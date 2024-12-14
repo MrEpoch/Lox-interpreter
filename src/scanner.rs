@@ -1,4 +1,4 @@
-use crate::{Literal, Token, TokenType, RESERVED_KEYWORDS};
+use crate::interpreter::{Literal, Token, TokenType, RESERVED_KEYWORDS};
 
 pub struct Scanner {
     pub tokens: Vec<Token>,
