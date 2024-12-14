@@ -160,8 +160,22 @@ impl Parser {
                 right: Box::new(right),
             }
         } else {
-            self.primary()
+            self.call()
         }
+    }
+
+    fn call(&self) -> Expr {
+        let mut expr =  self.primary();
+
+        while true {
+            if self.match_operators(vec![TokenType::LEFT_PAREN]) {
+                expr = self.finish_call(expr);
+            } else {
+                break;
+            }
+        }
+
+        expr
     }
 
     fn primary(&mut self) -> Expr {
@@ -437,5 +451,19 @@ impl Parser {
         self.consume(TokenType::SEMICOLON, "Expect ';' after expression.");
 
         expr
+    }
+
+    fn finish_call(&mut self, expr: Expr) {
+        let mut arguments = vec![];
+
+        if !self.check(TokenType::RIGHT_PAREN) {
+            while self.match_operators(vec![TokenType::COMMA]) {
+                arguments.push(self.expression());
+            }
+        }
+
+        let paren = self.consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
+
+        Expr::Call(callee, paren, arguments);
     }
 }

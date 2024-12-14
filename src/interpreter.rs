@@ -129,11 +129,13 @@ pub enum Expr {
         left: Box<Expr>,
     },
     Grouping(Vec<Expr>),
+    Call(Box<Expr>, Token, Vec<Expr>),
 }
 
 impl<'a> fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Expr::Call(a, b, c) => f.write_fmt(format_args!("{a} {b} {:?}", c)),
             Expr::Increment(a) => f.write_fmt(format_args!("{a}")),
             Expr::While(a, b) => f.write_fmt(format_args!("{a} {b}")), 
             Expr::Logical(a, b, c) => f.write_fmt(format_args!("{a} {b} {c}")),
