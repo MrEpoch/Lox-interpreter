@@ -59,7 +59,6 @@ impl Environment {
         }
         // println!("Undefined variable '{name}'");
         // println!("[line {line}]");
-
         exit(70);
     }
 }

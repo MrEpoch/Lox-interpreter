@@ -5,7 +5,7 @@ use std::{collections::HashMap, fs, io, process::exit, sync::Mutex};
 use once_cell::sync::Lazy;
 
 use crate::formatters::{get_from_unary, handle_grouping, handle_match, print_based_on_literal};
-use crate::{environment, evaluator, parser, scanner};
+use crate::{environment, evaluator, parser, runner, scanner};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
@@ -104,6 +104,7 @@ pub enum Expr {
         value: Box<Expr>,
     },
     Block(Vec<Expr>),
+    While(Box<Expr>, Box<Expr>),
     Var(Token),
     If {
         condition: Box<Expr>,
@@ -132,6 +133,7 @@ pub enum Expr {
 impl<'a> fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Expr::While(a, b) => f.write_fmt(format_args!("{a} {b}")), 
             Expr::Logical(a, b, c) => f.write_fmt(format_args!("{a} {b} {c}")),
             Expr::If {
                 condition,
@@ -312,5 +314,22 @@ impl Interpreter {
                 }
             }
         }
+    }
+
+    pub fn run(&self) {
+            if !self.file_contents.is_empty() {
+                let mut scanner = scanner::Scanner::new();
+                scanner.scan_tokens(&self.file_contents, &mut 0);
+                let mut parser = parser::Parser::new(scanner.tokens);
+                parser.parse();
+                let evaluator = evaluator::Evaluator::new();
+                let mut environment = environment::Environment::new();
+                for s in parser.statements.iter() {
+                    let evaluated = evaluator.evaluate(s, &mut environment);
+                    runner::interpret(evaluated)
+                }
+            } else {
+                println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner
+            }
     }
 }

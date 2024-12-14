@@ -316,11 +316,25 @@ impl Parser {
             return Expr::Print(Box::new(self.print_statement()));
         }
 
+        if self.match_operators(vec![TokenType::WHILE]) {
+            return self.while_statement();
+        }
+
         if self.match_operators(vec![TokenType::LEFT_BRACE]) {
             return Expr::Block(self.block());
         }
 
         self.expression_statement()
+    }
+
+    fn while_statement(&mut self) -> Expr {
+        self.consume(TokenType::LEFT_PAREN, "Expect '(' after 'if'.");
+        let condition = self.expression();
+        self.consume(TokenType::RIGHT_PAREN, "Expect ')' after 'if'.");
+
+        let body = self.statement();
+        
+        Expr::While(Box::new(condition), Box::new(body))
     }
 
     fn if_statement(&mut self) -> Expr {

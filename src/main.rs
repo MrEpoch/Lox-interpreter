@@ -1,8 +1,5 @@
 use std::env;
-use std::fs;
 use std::io::{self, Write};
-
-use formatters::parse_eval_inter;
 use interpreter::{Expr, Literal, Token, TokenType};
 
 mod environment;
@@ -35,25 +32,7 @@ fn main() {
             interpreter.evaluate();
         }
         "run" => {
-            let file_contents = fs::read_to_string(filename).unwrap_or_else(|_| {
-                writeln!(io::stderr(), "Failed to read file {}", filename).unwrap();
-                String::new()
-            });
-
-            if !file_contents.is_empty() {
-                let mut scanner = scanner::Scanner::new();
-                scanner.scan_tokens(&file_contents, &mut 0);
-                let mut parser = parser::Parser::new(scanner.tokens);
-                parser.parse();
-                let evaluator = evaluator::Evaluator::new();
-                let mut environment = environment::Environment::new();
-                for s in parser.statements.iter() {
-                    let evaluated = evaluator.evaluate(s, &mut environment);
-                    parse_eval_inter(evaluated);
-                }
-            } else {
-                println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner
-            }
+            interpreter.run();
         }
         _ => {
             writeln!(io::stderr(), "Unknown command: {}", command).unwrap();

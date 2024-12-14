@@ -1,6 +1,6 @@
 use std::process::exit;
 
-use crate::{environment, Expr, Literal, TokenType};
+use crate::{environment, runner, Expr, Literal, TokenType};
 
 pub struct Evaluator {}
 
@@ -64,17 +64,23 @@ impl Evaluator {
                 let mut environment_clone = environment::Environment::new();
                 environment_clone.enclosing = Some(Box::new(environment.clone()));
 
-                let mut returning_vec = vec![];
-
                 for expr in vec {
                     let evaluated = self.evaluator(expr, &mut environment_clone);
-                    returning_vec.push(evaluated);
+                    runner::interpret(evaluated);
                 }
 
                 let prev_env = environment_clone.enclosing.unwrap();
                 environment.migrate_environment(prev_env.map, prev_env.enclosing);
 
-                Expr::Block(returning_vec)
+                Expr::Nil
+            }
+            Expr::While(condition, body) => {
+                while self.is_truthy(&self.evaluator(condition, environment)) {
+                    let evaluated = self.evaluator(body, environment);
+                    runner::interpret(evaluated);
+                }
+
+                Expr::Nil
             }
             Expr::If {
                 condition,

@@ -1,20 +1,6 @@
 use std::process::exit;
 
-use crate::{
-    interpreter::{Expr, Literal, Token, TokenType},
-    runner,
-};
-
-pub fn parse_eval_inter(evaluated: Expr) {
-    match evaluated {
-        Expr::Block(exprs) => {
-            for e in exprs {
-                parse_eval_inter(e);
-            }
-        }
-        _ => runner::interpret(evaluated),
-    }
-}
+use crate::interpreter::{Expr, Literal, Token, TokenType};
 
 pub fn print_based_on_literal(literal: &Literal) -> String {
     match literal {
@@ -95,6 +81,8 @@ pub fn get_from_unary(expr_unary: Expr) -> String {
     }
 }
 
+/*
+
 pub fn language_error(token: Token, message: &str) {
     if token.token_type == TokenType::EOF {
         println!("[line {}] at end {message}", token.line);
@@ -103,3 +91,5 @@ pub fn language_error(token: Token, message: &str) {
     }
     exit(65);
 }
+
+*/
