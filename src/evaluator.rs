@@ -74,6 +74,10 @@ impl Evaluator {
 
                 Expr::Nil
             }
+            Expr::Increment(i) => {
+                let evaluated = self.evaluator(i, environment);
+                evaluated
+            },
             Expr::While(condition, body) => {
                 while self.is_truthy(&self.evaluator(condition, environment)) {
                     let evaluated = self.evaluator(body, environment);

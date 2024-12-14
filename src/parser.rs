@@ -308,6 +308,10 @@ impl Parser {
     }
 
     fn statement(&mut self) -> Expr {
+        if self.match_operators(vec![TokenType::FOR]) {
+            return self.for_statement();
+        }
+
         if self.match_operators(vec![TokenType::IF]) {
             return self.if_statement();
         }
@@ -335,6 +339,59 @@ impl Parser {
         let body = self.statement();
         
         Expr::While(Box::new(condition), Box::new(body))
+    }
+
+    fn for_statement(&mut self) -> Expr {
+        self.consume(TokenType::LEFT_PAREN, "Expect '(' after 'for'.");
+        let initializer: Option<Expr>;
+
+        if self.match_operators(vec![TokenType::SEMICOLON]) {
+            initializer = None;
+        } else if self.match_operators(vec![TokenType::VAR]) {
+            initializer = self.var_declaration();
+        } else {
+            initializer = Some(self.expression_statement());
+        }
+
+        let mut condition: Option<Expr> = None;
+
+        if !self.check(TokenType::SEMICOLON) {
+            condition = Some(self.expression());
+        }
+
+        self.consume(TokenType::SEMICOLON, "Expect ';' after loop condition.");
+
+        let mut increment: Option<Expr> = None;
+
+        if !self.check(TokenType::RIGHT_PAREN) {
+            increment = Some(self.expression());
+        }
+
+        self.consume(TokenType::RIGHT_PAREN, "Expect ')' after the clauses.");
+
+        let mut body = self.statement();
+
+        if increment != None {
+            body = Expr::Block(vec![
+                body,
+                Expr::Increment(Box::new(increment.unwrap())),
+            ])
+        }
+
+        if condition == None {
+            condition = Some(Expr::Literal(Literal::Bool(true)));
+        }
+
+        body = Expr::While(
+            Box::new(condition.unwrap()),
+            Box::new(body),
+        );
+
+        if initializer != None {
+            body = Expr::Block(vec![initializer.unwrap(), body]);
+        }
+
+        body
     }
 
     fn if_statement(&mut self) -> Expr {

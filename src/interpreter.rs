@@ -115,6 +115,7 @@ pub enum Expr {
         name: String,
         value: Box<Expr>,
     },
+    Increment(Box<Expr>),
     Number(f64),
     Nil,
     String(String),
@@ -133,6 +134,7 @@ pub enum Expr {
 impl<'a> fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Expr::Increment(a) => f.write_fmt(format_args!("{a}")),
             Expr::While(a, b) => f.write_fmt(format_args!("{a} {b}")), 
             Expr::Logical(a, b, c) => f.write_fmt(format_args!("{a} {b} {c}")),
             Expr::If {

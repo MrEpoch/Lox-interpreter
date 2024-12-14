@@ -1,2 +1,5 @@
-var val = 0;
-while (val < 10) print quz = quz + 1;
+
+
+for (var i = 0; i < 10; i = i + 1) {
+  print i;
+}
