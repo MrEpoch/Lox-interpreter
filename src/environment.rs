@@ -1,10 +1,19 @@
 use std::{collections::HashMap, process::exit};
 
-use crate::Expr;
+use crate::{
+    interpreter::{self, Clock, Global, LoxCallable},
+    Expr,
+};
+
+#[derive(Clone, Debug)]
+pub enum EnvironmentValue {
+    Expr(Expr),
+    Global(Global),
+}
 
 #[derive(Clone, Debug)]
 pub struct Environment {
-    pub map: HashMap<String, Expr>,
+    pub map: HashMap<String, EnvironmentValue>,
     pub enclosing: Option<Box<Environment>>,
 }
 
@@ -16,12 +25,16 @@ impl Environment {
         }
     }
 
-    pub fn migrate_environment(&mut self, map: HashMap<String, Expr>, enclosing: Option<Box<Environment>>) {
+    pub fn migrate_environment(
+        &mut self,
+        map: HashMap<String, EnvironmentValue>,
+        enclosing: Option<Box<Environment>>,
+    ) {
         self.map = map;
         self.enclosing = enclosing;
     }
 
-    pub fn assign(&mut self, name: &str, value: Expr) {
+    pub fn assign(&mut self, name: &str, value: EnvironmentValue) {
         if self.check_definition(name) {
             self.map.remove(name);
             self.map.insert(name.to_string(), value);
@@ -36,7 +49,7 @@ impl Environment {
         exit(70);
     }
 
-    pub fn define(&mut self, name: &str, value: Expr) {
+    pub fn define(&mut self, name: &str, value: EnvironmentValue) {
         if self.map.contains_key(name) {
             self.map.remove(name);
             self.map.insert(name.to_string(), value);
@@ -49,7 +62,7 @@ impl Environment {
         self.map.contains_key(name)
     }
 
-    pub fn get(&self, name: &str, line: u32) -> Option<&Expr> {
+    pub fn get(&self, name: &str, line: u32) -> Option<&EnvironmentValue> {
         if self.check_definition(name) {
             return self.map.get(name);
         }

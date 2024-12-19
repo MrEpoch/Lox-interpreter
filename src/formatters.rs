@@ -1,6 +1,4 @@
-use std::process::exit;
-
-use crate::interpreter::{Expr, Literal, Token, TokenType};
+use crate::interpreter::{Expr, Literal};
 
 pub fn print_based_on_literal(literal: &Literal) -> String {
     match literal {
@@ -18,7 +16,7 @@ pub fn print_based_on_literal(literal: &Literal) -> String {
     }
 }
 
-pub fn handle_grouping(exprs: Vec<Expr>, left_side: &String, right_side: &String) -> Vec<String> {
+pub fn handle_grouping(exprs: &Vec<Expr>, left_side: &String, right_side: &String) -> Vec<String> {
     let mut r: Vec<String> = vec![];
     for e in exprs {
         r.push(handle_match(e, left_side, right_side));
@@ -26,7 +24,7 @@ pub fn handle_grouping(exprs: Vec<Expr>, left_side: &String, right_side: &String
     r
 }
 
-pub fn handle_match(expr: Expr, left_side: &String, right_side: &String) -> String {
+pub fn handle_match(expr: &Expr, left_side: &String, right_side: &String) -> String {
     match expr {
         Expr::Grouping(exprs) => {
             format!(
@@ -45,8 +43,8 @@ pub fn handle_match(expr: Expr, left_side: &String, right_side: &String) -> Stri
             format!(
                 "{left_side}({} {} {}){right_side}",
                 operator.lexeme,
-                handle_match(*left, &String::from(""), &String::from("")),
-                handle_match(*right, &String::from(""), &String::from(""))
+                handle_match(left, &String::from(""), &String::from("")),
+                handle_match(right, &String::from(""), &String::from(""))
             )
         }
         Expr::Literal(l) => {
@@ -56,7 +54,7 @@ pub fn handle_match(expr: Expr, left_side: &String, right_side: &String) -> Stri
             format!(
                 "{left_side}({} {}){right_side}",
                 operator.lexeme,
-                handle_match(*right, &String::from(""), &String::from(""))
+                handle_match(right, &String::from(""), &String::from(""))
             )
         }
         Expr::String(s) => {
@@ -71,9 +69,9 @@ pub fn handle_match(expr: Expr, left_side: &String, right_side: &String) -> Stri
     }
 }
 
-pub fn get_from_unary(expr_unary: Expr) -> String {
+pub fn get_from_unary(expr_unary: &Expr) -> String {
     if let Expr::Unary { operator, right } = expr_unary {
-        format!("({} {})", operator.lexeme, get_from_unary(*right))
+        format!("({} {})", operator.lexeme, get_from_unary(right))
     } else if let Expr::Literal(literal) = expr_unary {
         print_based_on_literal(&literal)
     } else {

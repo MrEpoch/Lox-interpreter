@@ -1,6 +1,6 @@
+use interpreter::{Expr, Literal, Token, TokenType};
 use std::env;
 use std::io::{self, Write};
-use interpreter::{Expr, Literal, Token, TokenType};
 
 mod environment;
 mod evaluator;
@@ -19,7 +19,7 @@ fn main() {
 
     let command = &args[1];
     let filename = &args[2];
-    let interpreter = interpreter::Interpreter::new(filename);
+    let mut interpreter = interpreter::Interpreter::new(filename);
 
     match command.as_str() {
         "tokenize" => {

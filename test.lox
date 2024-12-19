@@ -1,5 +1,10 @@
+var stage = "unknown";
+var age = 47;
+if (age < 18) { stage = "child"; }
+if (age >= 18) { stage = "adult"; }
+print stage;
 
-
-for (var i = 0; i < 10; i = i + 1) {
-  print i;
-}
+var isAdult = age >= 18;
+print !isAdult;
+if (isAdult) { print "eligible for voting: true"; }
+if (!isAdult) { print "eligible for voting: false"; }

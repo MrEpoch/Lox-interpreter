@@ -1,9 +1,12 @@
 use core::fmt;
+use std::fmt::Debug;
 use std::io::Write;
+use std::time::{SystemTime, UNIX_EPOCH};
 use std::{collections::HashMap, fs, io, process::exit, sync::Mutex};
 
 use once_cell::sync::Lazy;
 
+use crate::environment::EnvironmentValue;
 use crate::formatters::{get_from_unary, handle_grouping, handle_match, print_based_on_literal};
 use crate::{environment, evaluator, parser, runner, scanner};
 
@@ -99,6 +102,12 @@ pub enum Expr {
     Logical(Box<Expr>, Box<Expr>, TokenType),
     Literal(Literal),
     Print(Box<Expr>),
+    Function {
+        name: Token,
+        params: Vec<Token>,
+        body: Vec<Expr>,
+        function_type: String,
+    },
     Variable {
         name: String,
         value: Box<Expr>,
@@ -135,9 +144,18 @@ pub enum Expr {
 impl<'a> fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Expr::Function {
+                name,
+                params,
+                body,
+                function_type,
+            } => f.write_fmt(format_args!(
+                "{name} {:?} {:?} {function_type}",
+                params, body
+            )),
             Expr::Call(a, b, c) => f.write_fmt(format_args!("{a} {b} {:?}", c)),
             Expr::Increment(a) => f.write_fmt(format_args!("{a}")),
-            Expr::While(a, b) => f.write_fmt(format_args!("{a} {b}")), 
+            Expr::While(a, b) => f.write_fmt(format_args!("{a} {b}")),
             Expr::Logical(a, b, c) => f.write_fmt(format_args!("{a} {b} {c}")),
             Expr::If {
                 condition,
@@ -177,6 +195,116 @@ impl<'a> fmt::Display for Expr {
     }
 }
 
+#[derive(Clone, Debug)]
+pub enum EvaluatorReturn {
+    Expr(Expr),
+    Global(Global),
+}
+
+#[derive(Clone, Debug)]
+pub enum Global {
+    Clock(Clock),
+}
+
+pub trait LoxCallable: Debug + Clone {
+    fn call(
+        &self,
+        environment: &mut environment::Environment,
+        statement: &Vec<Expr>,
+        arguments: Vec<Expr>,
+    ) -> CallReturn;
+    fn arity(&self) -> usize;
+}
+
+impl Expr {
+    pub fn is_lox_callable(&self, callee: &Expr) -> bool {
+        match &callee {
+            Expr::Var(t) => true,
+            _ => false,
+        }
+    }
+}
+
+impl LoxCallable for Expr {
+    fn call(
+        &self,
+        environment: &mut environment::Environment,
+        _statement: &Vec<Expr>,
+        arguments: Vec<Expr>,
+    ) -> CallReturn {
+        // Don't have declaration
+
+        let mut environment_f = environment.clone();
+
+        match self {
+            Expr::Function {
+                name, params, body, ..
+            } => {
+                for i in 0..params.len() {
+                    environment_f.define(
+                        &params[i].lexeme,
+                        EnvironmentValue::Expr(arguments[i].clone()),
+                    );
+                }
+
+                let evaluator = evaluator::Evaluator::new();
+                evaluator.evaluate(&Expr::Block(body.clone()), &mut environment_f, &Vec::new());
+            }
+            _ => {}
+        }
+
+        CallReturn::Expr(Expr::Nil)
+    }
+
+    fn arity(&self) -> usize {
+        match &self {
+            Expr::Function { params, .. } => params.len(),
+            _ => 0,
+        }
+    }
+}
+
+pub enum CallReturn {
+    Expr(Expr),
+}
+
+#[derive(Clone, Debug)]
+pub struct Clock {}
+
+impl LoxCallable for Clock {
+    fn call(
+        &self,
+        _environment: &mut environment::Environment,
+        _statement: &Vec<Expr>,
+        _arguments: Vec<Expr>,
+    ) -> CallReturn {
+        CallReturn::Expr(Expr::Number(
+            SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap()
+                .as_secs_f64(),
+        ))
+    }
+
+    fn arity(&self) -> usize {
+        0
+    }
+}
+
+impl Clock {
+    pub fn new() -> Self {
+        Self {}
+    }
+
+    pub fn is_lox_callable(&self, _callee: &Expr) -> bool {
+        true
+    }
+
+    pub fn to_string(&self) -> String {
+        String::from("<native fn>")
+    }
+}
+
 pub static RESERVED_KEYWORDS: Lazy<Mutex<HashMap<&'static str, TokenType>>> = Lazy::new(|| {
     let mut map = HashMap::new();
 
@@ -208,6 +336,7 @@ impl fmt::Display for Token {
 
 pub struct Interpreter {
     pub file_contents: String,
+    expressions: Option<Vec<Expr>>,
 }
 
 impl Interpreter {
@@ -221,15 +350,17 @@ impl Interpreter {
             println!("EOF  null");
         }
 
-        Self { file_contents }
+        Self {
+            file_contents,
+            expressions: None,
+        }
     }
 
-    pub fn tokenize(&self) {
+    pub fn tokenize(&mut self) {
         if !self.file_contents.is_empty() {
             let mut error_code: u8 = 0;
             let mut scanner = scanner::Scanner::new();
             scanner.scan_tokens(&self.file_contents, &mut error_code);
-
             for v in scanner.tokens.iter() {
                 println!(
                     "{} {} {}",
@@ -245,13 +376,17 @@ impl Interpreter {
         }
     }
 
-    pub fn parse(&self) {
+    pub fn parse(&mut self) {
         if !self.file_contents.is_empty() {
             let mut scanned = scanner::Scanner::new();
             scanned.scan_tokens(&self.file_contents, &mut 0);
+
             let mut parser = parser::Parser::new(scanned.tokens);
             let expressions = parser.expression();
-            match expressions {
+
+            self.expressions = Some(vec![expressions]);
+
+            match &self.expressions.as_ref().unwrap()[0] {
                 Expr::Grouping(exprs) => {
                     println!(
                         "{}",
@@ -270,15 +405,15 @@ impl Interpreter {
                     println!(
                         "({} {} {})",
                         operator.lexeme,
-                        handle_match(*left, &String::from(""), &String::from("")),
-                        handle_match(*right, &String::from(""), &String::from(""))
+                        handle_match(left, &String::from(""), &String::from("")),
+                        handle_match(right, &String::from(""), &String::from(""))
                     );
                 }
                 Expr::Literal(l) => {
                     println!("{}", print_based_on_literal(&l));
                 }
                 Expr::Unary { operator, right } => {
-                    println!("{}", get_from_unary(Expr::Unary { operator, right }));
+                    println!("{}", get_from_unary(&self.expressions.as_ref().unwrap()[0]));
                 }
                 Expr::String(s) => {
                     println!("{}", s);
@@ -293,26 +428,35 @@ impl Interpreter {
         }
     }
 
-    pub fn evaluate(&self) {
+    pub fn evaluate(&mut self) {
         if !self.file_contents.is_empty() {
             let mut scanner = scanner::Scanner::new();
             scanner.scan_tokens(&self.file_contents, &mut 0);
             let mut parser = parser::Parser::new(scanner.tokens);
             let expression = parser.expression();
             let evaluator = evaluator::Evaluator::new();
-            match evaluator.evaluate(&expression, &mut environment::Environment::new()) {
-                Expr::String(s) => {
-                    println!("{}", s);
-                }
-                Expr::Number(n) => {
-                    println!("{}", n);
-                }
-                Expr::Bool(b) => {
-                    println!("{}", b);
-                }
-                Expr::Nil => {
-                    println!("nil");
-                }
+            match evaluator.evaluate(
+                &expression,
+                &mut environment::Environment::new(),
+                &parser.statements,
+            ) {
+                EvaluatorReturn::Expr(e) => match e {
+                    Expr::String(s) => {
+                        println!("{}", s);
+                    }
+                    Expr::Number(n) => {
+                        println!("{}", n);
+                    }
+                    Expr::Bool(b) => {
+                        println!("{}", b);
+                    }
+                    Expr::Nil => {
+                        println!("nil");
+                    }
+                    _ => {
+                        print!("Invalid expression");
+                    }
+                },
                 _ => {
                     print!("Invalid expression");
                 }
@@ -321,19 +465,33 @@ impl Interpreter {
     }
 
     pub fn run(&self) {
-            if !self.file_contents.is_empty() {
-                let mut scanner = scanner::Scanner::new();
-                scanner.scan_tokens(&self.file_contents, &mut 0);
-                let mut parser = parser::Parser::new(scanner.tokens);
-                parser.parse();
-                let evaluator = evaluator::Evaluator::new();
-                let mut environment = environment::Environment::new();
-                for s in parser.statements.iter() {
-                    let evaluated = evaluator.evaluate(s, &mut environment);
-                    runner::interpret(evaluated)
+        if !self.file_contents.is_empty() {
+            let mut scanner = scanner::Scanner::new();
+            scanner.scan_tokens(&self.file_contents, &mut 0);
+            let mut parser = parser::Parser::new(scanner.tokens);
+            parser.parse();
+            let evaluator = evaluator::Evaluator::new();
+            let mut environment = environment::Environment::new();
+
+            environment.define(
+                "clock",
+                EnvironmentValue::Global(Global::Clock(Clock::new())),
+            );
+
+            let mut index = 0;
+            while index < parser.statements.len() {
+                let s = &parser.statements[index];
+                let evaluated = evaluator.evaluate(s, &mut environment, &parser.statements);
+                match evaluated {
+                    EvaluatorReturn::Expr(e) => {
+                        runner::interpret(e);
+                    }
+                    _ => {}
                 }
-            } else {
-                println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner
+                index += 1;
             }
+        } else {
+            println!("EOF  null"); // Placeholder, remove this line when implementing the Scanner
+        }
     }
 }

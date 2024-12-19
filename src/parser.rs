@@ -18,22 +18,30 @@ impl Parser {
     }
 
     fn and(&mut self) -> Expr {
+        // Variables will be enums, having them mutable, reduces the number of heap allocations
+
         let mut expr = self.equality();
+        let mut operator: Token;
+        let mut right: Expr;
 
         while self.match_operators(vec![TokenType::AND]) {
-            let operator = self.tokens.get(self.current - 1).unwrap().clone();
-            let right = self.and();
+            operator = self.tokens.get(self.current - 1).unwrap().clone();
+            right = self.and();
             expr = Expr::Logical(Box::new(expr), Box::new(right), operator.clone().token_type);
         }
         expr
     }
 
     fn or(&mut self) -> Expr {
+        // Variables will be enums, having them mutable, reduces the number of heap allocations
+
         let mut expr = self.and();
+        let mut operator: Token;
+        let mut right: Expr;
 
         while self.match_operators(vec![TokenType::OR]) {
-            let operator = self.tokens.get(self.current - 1).unwrap().clone();
-            let right = self.and();
+            operator = self.tokens.get(self.current - 1).unwrap().clone();
+            right = self.and();
             expr = Expr::Logical(Box::new(expr), Box::new(right), operator.clone().token_type);
         }
 
@@ -71,6 +79,8 @@ impl Parser {
 
     // !=, ==
     fn equality(&mut self) -> Expr {
+        // Variables will be enums, having them mutable, reduces the number of heap allocations
+
         let mut expr = self.comparison();
         let mut operator: Token;
         let mut right: Expr;
@@ -90,6 +100,8 @@ impl Parser {
 
     // >, >=, <, <=
     fn comparison(&mut self) -> Expr {
+        // Variables will be enums, having them mutable, reduces the number of heap allocations
+
         let mut expr = self.term();
         let mut operator: Token;
         let mut right: Expr;
@@ -114,6 +126,8 @@ impl Parser {
 
     // +, -
     fn term(&mut self) -> Expr {
+        // Variables will be enums, having them mutable, reduces the number of heap allocations
+
         let mut expr = self.factor();
         let mut operator: Token;
         let mut right: Expr;
@@ -133,6 +147,8 @@ impl Parser {
 
     // /, *
     fn factor(&mut self) -> Expr {
+        // Variables will be enums, having them mutable, reduces the number of heap allocations
+
         let mut expr = self.unary();
         let mut right: Expr;
         let mut operator: Token;
@@ -164,10 +180,12 @@ impl Parser {
         }
     }
 
-    fn call(&self) -> Expr {
-        let mut expr =  self.primary();
+    fn call(&mut self) -> Expr {
+        // Variable will be enum, having it mutable, reduces the number of heap allocations
 
-        while true {
+        let mut expr = self.primary();
+
+        loop {
             if self.match_operators(vec![TokenType::LEFT_PAREN]) {
                 expr = self.finish_call(expr);
             } else {
@@ -236,7 +254,6 @@ impl Parser {
         if self.check(token_type) {
             return self.advance();
         }
-
         exit(65);
     }
 
@@ -278,6 +295,8 @@ impl Parser {
     }
 
     pub fn parse(&mut self) {
+        // Variable will be enum, having it mutable, reduces the number of heap allocations
+
         let mut declaration;
         while !self.is_end() {
             declaration = self.declaration();
@@ -286,6 +305,9 @@ impl Parser {
     }
 
     fn declaration(&mut self) -> Expr {
+        if self.match_operators(vec![TokenType::FUN]) {
+            return self.function(String::from("function"));
+        }
         if self.match_operators(vec![TokenType::VAR]) {
             match self.var_declaration() {
                 Some(expr) => expr,
@@ -296,6 +318,52 @@ impl Parser {
             }
         } else {
             self.statement()
+        }
+    }
+
+    fn function(&mut self, kind: String) -> Expr {
+        let name = self
+            .consume(TokenType::IDENTIFIER, &format!("Expect {} name.", kind))
+            .clone();
+
+        self.consume(
+            TokenType::LEFT_PAREN,
+            &format!("Expect '(' after {} name.", kind),
+        );
+        let mut parameters: Vec<Token> = vec![];
+
+        if !self.check(TokenType::RIGHT_PAREN) {
+            parameters.push(
+                self.consume(TokenType::IDENTIFIER, "Expect parameter name.")
+                    .clone(),
+            );
+            while self.match_operators(vec![TokenType::COMMA]) {
+                if parameters.len() >= 250 {
+                    // println!("Cannot have more than 250 parameters.");
+                    exit(70);
+                }
+
+                parameters.push(
+                    self.consume(TokenType::IDENTIFIER, "Expect parameter name.")
+                        .clone(),
+                );
+            }
+        }
+
+        self.consume(TokenType::RIGHT_PAREN, "Expect ')' after parameters.");
+
+        self.consume(
+            TokenType::LEFT_BRACE,
+            &format!("Expect '{{' before {} body.", kind),
+        );
+
+        let body = self.block();
+
+        Expr::Function {
+            name,
+            params: parameters,
+            body,
+            function_type: String::from("local"),
         }
     }
 
@@ -351,7 +419,7 @@ impl Parser {
         self.consume(TokenType::RIGHT_PAREN, "Expect ')' after 'if'.");
 
         let body = self.statement();
-        
+
         Expr::While(Box::new(condition), Box::new(body))
     }
 
@@ -386,20 +454,14 @@ impl Parser {
         let mut body = self.statement();
 
         if increment != None {
-            body = Expr::Block(vec![
-                body,
-                Expr::Increment(Box::new(increment.unwrap())),
-            ])
+            body = Expr::Block(vec![body, Expr::Increment(Box::new(increment.unwrap()))])
         }
 
         if condition == None {
             condition = Some(Expr::Literal(Literal::Bool(true)));
         }
 
-        body = Expr::While(
-            Box::new(condition.unwrap()),
-            Box::new(body),
-        );
+        body = Expr::While(Box::new(condition.unwrap()), Box::new(body));
 
         if initializer != None {
             body = Expr::Block(vec![initializer.unwrap(), body]);
@@ -453,17 +515,23 @@ impl Parser {
         expr
     }
 
-    fn finish_call(&mut self, expr: Expr) {
+    fn finish_call(&mut self, expr: Expr) -> Expr {
+        // Variable will be enum, having it mutable, reduces the number of heap allocations
+
         let mut arguments = vec![];
 
         if !self.check(TokenType::RIGHT_PAREN) {
+            arguments.push(self.expression());
             while self.match_operators(vec![TokenType::COMMA]) {
+                if arguments.len() >= 255 {
+                    exit(70);
+                }
                 arguments.push(self.expression());
             }
         }
 
         let paren = self.consume(TokenType::RIGHT_PAREN, "Expect ')' after arguments.");
 
-        Expr::Call(callee, paren, arguments);
+        Expr::Call(Box::new(expr), paren.clone(), arguments)
     }
 }
