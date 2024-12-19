@@ -180,7 +180,9 @@ impl Evaluator {
                 let mut arguments = vec![];
 
                 for argument in args {
-                    arguments.push(self.expr_match(argument, environment, statements));
+                    if let EvaluatorReturn::Expr(e) = self.evaluate(argument, environment, statements) {
+                        arguments.push(e);
+                    }
                 }
 
                 match &callee_ev {
