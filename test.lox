@@ -1,10 +1,2 @@
-var stage = "unknown";
-var age = 47;
-if (age < 18) { stage = "child"; }
-if (age >= 18) { stage = "adult"; }
-print stage;
-
-var isAdult = age >= 18;
-print !isAdult;
-if (isAdult) { print "eligible for voting: true"; }
-if (!isAdult) { print "eligible for voting: false"; }
+fun bar() { }
+print bar;

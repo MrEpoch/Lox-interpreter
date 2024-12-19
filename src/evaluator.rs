@@ -172,7 +172,7 @@ impl Evaluator {
                         function_type: String::from("local"),
                     }),
                 );
-                Expr::Nil
+                Expr::String(format!("<fn {}>", name.lexeme))
             }
             Expr::Call(callee, _, args) => {
                 let callee_ev = self.evaluate(callee, environment, statements);

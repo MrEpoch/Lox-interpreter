@@ -249,11 +249,12 @@ impl LoxCallable for Expr {
 
                 let evaluator = evaluator::Evaluator::new();
                 evaluator.evaluate(&Expr::Block(body.clone()), &mut environment_f, &Vec::new());
+                return CallReturn::Expr(Expr::String(format!("<fn {}>", name.lexeme)))
             }
             _ => {}
         }
 
-        CallReturn::Expr(Expr::Nil)
+        CallReturn::Expr(Expr::String(format!("<fn Nil>")))
     }
 
     fn arity(&self) -> usize {

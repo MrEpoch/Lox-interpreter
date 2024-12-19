@@ -3,6 +3,7 @@ use crate::Expr;
 pub fn interpret(statement: Expr) {
     match statement {
         Expr::Print(e) => match *e {
+            Expr::Function { name, .. } => println!("<fn {}>", name.lexeme),
             Expr::String(s) => {
                 println!("{}", s);
             }
