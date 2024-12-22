@@ -1,9 +1,6 @@
 use std::{collections::HashMap, process::exit};
 
-use crate::{
-    interpreter::{self, Clock, Global, LoxCallable},
-    Expr,
-};
+use crate::{interpreter::Global, Expr};
 
 #[derive(Clone, Debug)]
 pub enum EnvironmentValue {

@@ -102,6 +102,7 @@ pub enum Expr {
     Logical(Box<Expr>, Box<Expr>, TokenType),
     Literal(Literal),
     Print(Box<Expr>),
+    Return(Token, Box<Expr>),
     Function {
         name: Token,
         params: Vec<Token>,
@@ -144,6 +145,7 @@ pub enum Expr {
 impl<'a> fmt::Display for Expr {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Expr::Return(keyword, value) => f.write_fmt(format_args!("{keyword} {value}")),
             Expr::Function {
                 name,
                 params,
@@ -210,7 +212,7 @@ pub trait LoxCallable: Debug + Clone {
     fn call(
         &self,
         environment: &mut environment::Environment,
-        statement: &Vec<Expr>,
+        fn_bind: Option<&Expr>,
         arguments: Vec<Expr>,
     ) -> CallReturn;
     fn arity(&self) -> usize;
@@ -229,7 +231,7 @@ impl LoxCallable for Expr {
     fn call(
         &self,
         environment: &mut environment::Environment,
-        _statement: &Vec<Expr>,
+        fn_bind: Option<&Expr>,
         arguments: Vec<Expr>,
     ) -> CallReturn {
         // Don't have declaration
@@ -237,9 +239,7 @@ impl LoxCallable for Expr {
         let mut environment_f = environment.clone();
 
         match self {
-            Expr::Function {
-                name, params, body, ..
-            } => {
+            Expr::Function { params, body, .. } => {
                 for i in 0..params.len() {
                     environment_f.define(
                         &params[i].lexeme,
@@ -248,8 +248,17 @@ impl LoxCallable for Expr {
                 }
 
                 let evaluator = evaluator::Evaluator::new();
-                evaluator.evaluate(&Expr::Block(body.clone()), &mut environment_f, &Vec::new());
-                return CallReturn::Expr(Expr::String(format!("<fn {}>", name.lexeme)))
+                let expr_block = Expr::Block(body.clone());
+                let evaluated =
+                    evaluator.evaluate(&expr_block, &mut environment_f, Some(&expr_block));
+                if let EvaluatorReturn::Expr(e) = evaluated {
+                    match e {
+                        Expr::Return(_, v) => return CallReturn::Expr(*v),
+                        _ => return CallReturn::Expr(Expr::Nil),
+                    }
+                } else {
+                    return CallReturn::Expr(Expr::Nil);
+                }
             }
             _ => {}
         }
@@ -276,7 +285,7 @@ impl LoxCallable for Clock {
     fn call(
         &self,
         _environment: &mut environment::Environment,
-        _statement: &Vec<Expr>,
+        _fn_bind: Option<&Expr>,
         _arguments: Vec<Expr>,
     ) -> CallReturn {
         CallReturn::Expr(Expr::Number(
@@ -436,11 +445,7 @@ impl Interpreter {
             let mut parser = parser::Parser::new(scanner.tokens);
             let expression = parser.expression();
             let evaluator = evaluator::Evaluator::new();
-            match evaluator.evaluate(
-                &expression,
-                &mut environment::Environment::new(),
-                &parser.statements,
-            ) {
+            match evaluator.evaluate(&expression, &mut environment::Environment::new(), None) {
                 EvaluatorReturn::Expr(e) => match e {
                     Expr::String(s) => {
                         println!("{}", s);
@@ -482,7 +487,7 @@ impl Interpreter {
             let mut index = 0;
             while index < parser.statements.len() {
                 let s = &parser.statements[index];
-                let evaluated = evaluator.evaluate(s, &mut environment, &parser.statements);
+                let evaluated = evaluator.evaluate(s, &mut environment, None);
                 match evaluated {
                     EvaluatorReturn::Expr(e) => {
                         runner::interpret(e);

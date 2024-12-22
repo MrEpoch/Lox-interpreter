@@ -250,7 +250,7 @@ impl Parser {
         }
     }
 
-    fn consume(&mut self, token_type: TokenType, message: &str) -> &Token {
+    fn consume(&mut self, token_type: TokenType, _message: &str) -> &Token {
         if self.check(token_type) {
             return self.advance();
         }
@@ -402,6 +402,10 @@ impl Parser {
             return Expr::Print(Box::new(self.print_statement()));
         }
 
+        if self.match_operators(vec![TokenType::RETURN]) {
+            return self.return_statement();
+        }
+
         if self.match_operators(vec![TokenType::WHILE]) {
             return self.while_statement();
         }
@@ -513,6 +517,19 @@ impl Parser {
         self.consume(TokenType::SEMICOLON, "Expect ';' after expression.");
 
         expr
+    }
+
+    fn return_statement(&mut self) -> Expr {
+        let keyword = self.tokens.get(self.current - 1).unwrap().clone();
+        let mut value = Expr::Nil;
+
+        if !self.check(TokenType::SEMICOLON) {
+            value = self.expression();
+        }
+
+        self.consume(TokenType::SEMICOLON, "Expect ';' after return value.");
+
+        Expr::Return(keyword, Box::new(value))
     }
 
     fn finish_call(&mut self, expr: Expr) -> Expr {

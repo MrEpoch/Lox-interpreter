@@ -19,13 +19,13 @@ impl Evaluator {
         &self,
         statement: &Expr,
         environment: &mut environment::Environment,
-        statements: &Vec<Expr>,
+        fn_bind: Option<&Expr>,
     ) -> EvaluatorReturn {
-        self.evaluator(&statement, environment, statements)
+        self.evaluator(&statement, environment, fn_bind)
     }
 
-    fn invalid_error(&self, message: String) -> Expr {
-        // println!("{}", message);
+    fn invalid_error(&self, _message: String) -> Expr {
+        // println!("{}", _message);
         exit(70)
     }
 
@@ -33,7 +33,7 @@ impl Evaluator {
         &self,
         expr: &Expr,
         environment: &mut environment::Environment,
-        statements: &Vec<Expr>,
+        fn_bind: Option<&Expr>,
     ) -> EvaluatorReturn {
         match expr {
             Expr::Var(t) => {
@@ -41,8 +41,8 @@ impl Evaluator {
                 // self.evaluator(&val, environment)
                 match val {
                     EnvironmentValue::Expr(e) => match &e {
-                        Expr::Literal(t) => {
-                            EvaluatorReturn::Expr(self.expr_match(&e, environment, statements))
+                        Expr::Literal(_) => {
+                            EvaluatorReturn::Expr(self.expr_match(&e, environment, fn_bind))
                         }
                         Expr::Function {
                             name, params, body, ..
@@ -57,7 +57,7 @@ impl Evaluator {
                     EnvironmentValue::Global(g) => EvaluatorReturn::Global(g.clone()),
                 }
             }
-            _ => EvaluatorReturn::Expr(self.expr_match(expr, environment, statements)),
+            _ => EvaluatorReturn::Expr(self.expr_match(expr, environment, fn_bind)),
         }
     }
 
@@ -73,7 +73,7 @@ impl Evaluator {
         &self,
         expr: &Expr,
         environment: &mut environment::Environment,
-        statements: &Vec<Expr>,
+        fn_bind: Option<&Expr>,
     ) -> Expr {
         match expr {
             Expr::Literal(l) => match l {
@@ -83,35 +83,35 @@ impl Evaluator {
                 _ => Expr::Nil,
             },
             Expr::Print(e) => {
-                if let EvaluatorReturn::Expr(v) = self.evaluate(e, environment, statements) {
+                if let EvaluatorReturn::Expr(v) = self.evaluate(e, environment, fn_bind) {
                     return Expr::Print(Box::new(v));
                 } else {
                     return Expr::Nil;
                 }
             }
             Expr::Logical(left, right, operator) => {
-                let left = self.expr_match(left, environment, statements);
+                let left = self.expr_match(left, environment, fn_bind.clone());
 
                 match operator {
                     TokenType::OR => {
                         if self.is_truthy(&left) {
                             left
                         } else {
-                            self.expr_match(right, environment, statements)
+                            self.expr_match(right, environment, fn_bind)
                         }
                     }
                     TokenType::AND => {
                         if !self.is_truthy(&left) {
                             left
                         } else {
-                            self.expr_match(right, environment, statements)
+                            self.expr_match(right, environment, fn_bind)
                         }
                     }
                     _ => self.invalid_error(String::from("Logical error")),
                 }
             }
             Expr::Assign { name, value } => {
-                let value_e = self.evaluate(value, environment, statements);
+                let value_e = self.evaluate(value, environment, fn_bind);
                 if let EvaluatorReturn::Expr(e) = value_e {
                     environment.assign(name, EnvironmentValue::Expr(e.clone()));
                     e
@@ -122,34 +122,49 @@ impl Evaluator {
             Expr::Block(vec) => {
                 let mut environment_clone = environment::Environment::new();
                 let mut evaluated: Expr;
+                let mut return_expr = Expr::Nil;
 
                 environment_clone.enclosing = Some(Box::new(environment.clone()));
 
                 for expr in vec {
-                    evaluated = self.expr_match(expr, &mut environment_clone, statements);
-                    runner::interpret(evaluated);
+                    match self.evaluate(expr, &mut environment_clone, fn_bind.clone()) {
+                        EvaluatorReturn::Expr(e) => match &e {
+                            Expr::Return(keyword, v) => {
+                                if let Some(_) = fn_bind {
+                                    return_expr = Expr::Return(keyword.clone(), v.clone());
+                                    break;
+                                } else {
+                                    self.invalid_error(String::from("Return error"));
+                                    break;
+                                }
+                            }
+                            _ => evaluated = e,
+                        },
+                        _ => evaluated = Expr::Nil,
+                    };
+                    runner::interpret(evaluated)
                 }
 
                 let prev_env = environment_clone.enclosing.unwrap();
                 environment.migrate_environment(prev_env.map, prev_env.enclosing);
 
-                Expr::Nil
+                return_expr
             }
-            Expr::Increment(i) => match self.evaluate(i, environment, statements) {
+            Expr::Increment(i) => match self.evaluate(i, environment, fn_bind) {
                 EvaluatorReturn::Expr(e) => e,
                 _ => self.invalid_error(String::from("Increment error")),
             },
             Expr::While(condition, body) => {
                 let mut evaluated: Expr;
 
-                let eval_condition = self.evaluate(condition, environment, statements);
+                let eval_condition = self.evaluate(condition, environment, fn_bind.clone());
                 if let EvaluatorReturn::Expr(mut e) = eval_condition {
                     while self.is_truthy(&e) {
-                        evaluated = self.expr_match(body, environment, statements);
+                        evaluated = self.expr_match(body, environment, fn_bind.clone());
                         runner::interpret(evaluated);
 
                         e = if let EvaluatorReturn::Expr(e) =
-                            self.evaluate(condition, environment, statements)
+                            self.evaluate(condition, environment, fn_bind.clone())
                         {
                             e
                         } else {
@@ -175,12 +190,14 @@ impl Evaluator {
                 Expr::String(format!("<fn {}>", name.lexeme))
             }
             Expr::Call(callee, _, args) => {
-                let callee_ev = self.evaluate(callee, environment, statements);
+                let callee_ev = self.evaluate(callee, environment, fn_bind.clone());
 
                 let mut arguments = vec![];
 
                 for argument in args {
-                    if let EvaluatorReturn::Expr(e) = self.evaluate(argument, environment, statements) {
+                    if let EvaluatorReturn::Expr(e) =
+                        self.evaluate(argument, environment, fn_bind.clone())
+                    {
                         arguments.push(e);
                     }
                 }
@@ -192,6 +209,7 @@ impl Evaluator {
                                 self.invalid_error(String::from(
                                     "Can only call functions and classes.",
                                 ));
+                                return Expr::Nil;
                             }
 
                             if arguments.len() != e.arity() {
@@ -200,9 +218,10 @@ impl Evaluator {
                                     e.arity(),
                                     arguments.len()
                                 ));
+                                return Expr::Nil;
                             }
 
-                            match e.call(environment, statements, arguments) {
+                            match e.call(environment, fn_bind, arguments) {
                                 CallReturn::Expr(e) => e,
                             }
                         }
@@ -224,24 +243,52 @@ impl Evaluator {
                                 ));
                             }
 
-                            match c.call(environment, statements, arguments) {
+                            match c.call(environment, fn_bind, arguments) {
                                 CallReturn::Expr(e) => e,
                             }
                         }
                     },
                 }
             }
+            Expr::Return(keyword, value) => {
+                let mut value_ev = Expr::Nil;
+
+                if **value != Expr::Nil {
+                    value_ev = if let EvaluatorReturn::Expr(e) =
+                        self.evaluate(value, environment, fn_bind)
+                    {
+                        e
+                    } else {
+                        Expr::Nil
+                    };
+                }
+
+                Expr::Return(keyword.clone(), Box::new(value_ev))
+            }
             Expr::If {
                 condition,
                 then_branch,
                 else_branch,
             } => {
-                if let EvaluatorReturn::Expr(e) = self.evaluate(condition, environment, statements)
+                if let EvaluatorReturn::Expr(e) =
+                    self.evaluate(condition, environment, fn_bind.clone())
                 {
                     if self.is_truthy(&e) {
-                        self.expr_match(then_branch, environment, statements)
+                        if let EvaluatorReturn::Expr(e) =
+                            self.evaluate(then_branch, environment, fn_bind)
+                        {
+                            return e;
+                        } else {
+                            return Expr::Nil;
+                        }
                     } else if let Some(else_branch) = else_branch {
-                        self.expr_match(else_branch, environment, statements)
+                        if let EvaluatorReturn::Expr(e) =
+                            self.evaluate(else_branch, environment, fn_bind)
+                        {
+                            return e;
+                        } else {
+                            return Expr::Nil;
+                        }
                     } else {
                         Expr::Nil
                     }
@@ -250,7 +297,7 @@ impl Evaluator {
                 }
             }
             Expr::Variable { name, value } => {
-                let value_def = self.evaluate(value, environment, statements);
+                let value_def = self.evaluate(value, environment, fn_bind);
                 if let EvaluatorReturn::Expr(e) = value_def {
                     environment.define(name, EnvironmentValue::Expr(e.clone()));
                     Expr::Variable {
@@ -266,8 +313,8 @@ impl Evaluator {
                 left,
                 right,
             } => {
-                let left = self.evaluate(left, environment, statements);
-                let right = self.evaluate(right, environment, statements);
+                let left = self.evaluate(left, environment, fn_bind.clone());
+                let right = self.evaluate(right, environment, fn_bind);
 
                 match (left, right) {
                     (EvaluatorReturn::Expr(left), EvaluatorReturn::Expr(right)) => {
@@ -332,7 +379,7 @@ impl Evaluator {
                 }
             }
             Expr::Unary { operator, right } => {
-                let evaluated = self.evaluate(right, environment, statements);
+                let evaluated = self.evaluate(right, environment, fn_bind.clone());
                 if let EvaluatorReturn::Expr(e) = evaluated {
                     match operator.token_type {
                         TokenType::BANG => match e {
@@ -342,7 +389,7 @@ impl Evaluator {
                                 right: _,
                             } => {
                                 if let EvaluatorReturn::Expr(e_u) =
-                                    self.evaluate(right, environment, statements)
+                                    self.evaluate(right, environment, fn_bind)
                                 {
                                     e_u
                                 } else {
@@ -370,7 +417,13 @@ impl Evaluator {
                     Expr::Nil
                 }
             }
-            Expr::Grouping(exprs) => self.expr_match(&exprs[0], environment, statements),
+            Expr::Grouping(exprs) => {
+                if let EvaluatorReturn::Expr(e_u) = self.evaluate(&exprs[0], environment, fn_bind) {
+                    e_u
+                } else {
+                    Expr::Nil
+                }
+            }
             _ => Expr::Nil,
         }
     }
