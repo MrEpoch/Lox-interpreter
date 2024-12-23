@@ -45,12 +45,12 @@ impl Evaluator {
                             EvaluatorReturn::Expr(self.expr_match(&e, environment, fn_bind))
                         }
                         Expr::Function {
-                            name, params, body, ..
+                            name, params, body, environment
                         } => EvaluatorReturn::Expr(Expr::Function {
                             name: name.clone(),
                             params: params.clone(),
                             body: body.clone(),
-                            function_type: String::from("local"),
+                            environment: environment.clone(),
                         }),
                         _ => EvaluatorReturn::Expr(e),
                     },
@@ -160,7 +160,15 @@ impl Evaluator {
                 let eval_condition = self.evaluate(condition, environment, fn_bind.clone());
                 if let EvaluatorReturn::Expr(mut e) = eval_condition {
                     while self.is_truthy(&e) {
-                        evaluated = self.expr_match(body, environment, fn_bind.clone());
+                        evaluated = if let EvaluatorReturn::Expr(e) = self.evaluate(body, environment, fn_bind.clone()) {
+                            e
+                        } else {
+                            Expr::Nil
+                        };
+                        match &evaluated {
+                            Expr::Return(..) => return evaluated,
+                            _ => {}
+                        }
                         runner::interpret(evaluated);
 
                         e = if let EvaluatorReturn::Expr(e) =
@@ -178,13 +186,14 @@ impl Evaluator {
             Expr::Function {
                 name, params, body, ..
             } => {
+                let environment_copy = environment.clone();
                 environment.define(
                     &name.lexeme,
                     EnvironmentValue::Expr(Expr::Function {
                         name: name.clone(),
                         params: params.clone(),
                         body: body.clone(),
-                        function_type: String::from("local"),
+                        environment: Some(environment_copy),
                     }),
                 );
                 Expr::String(format!("<fn {}>", name.lexeme))

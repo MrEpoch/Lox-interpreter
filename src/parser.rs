@@ -1,6 +1,6 @@
 use std::process::exit;
 
-use crate::{Expr, Literal, Token, TokenType};
+use crate::{environment::Environment, Expr, Literal, Token, TokenType};
 
 pub struct Parser {
     pub tokens: Vec<Token>,
@@ -15,6 +15,11 @@ impl Parser {
             current: 0,
             statements: vec![],
         }
+    }
+
+    fn invalid_error(&self, message: String) -> Expr {
+        // println!("{}", message);
+        exit(65)
     }
 
     fn and(&mut self) -> Expr {
@@ -65,7 +70,7 @@ impl Parser {
                 _ => {
                     // println!("err");
                     // Error
-                    exit(70)
+                    self.invalid_error(String::from("Invalid assignment target"));
                 }
             }
         }
@@ -220,8 +225,7 @@ impl Parser {
             return Expr::Grouping(vec![expr]);
         }
 
-        // println!("Expect expression.");
-        exit(65);
+        self.invalid_error(String::from("Expect expression."))
     }
 
     fn synchronize(&mut self) {
@@ -254,7 +258,8 @@ impl Parser {
         if self.check(token_type) {
             return self.advance();
         }
-        exit(65);
+        self.invalid_error(String::from("Expect '") + &token_type.to_string() + "'.");
+        self.tokens.get(self.current - 1).unwrap()
     }
 
     fn match_operators(&mut self, types: Vec<TokenType>) -> bool {
@@ -339,8 +344,7 @@ impl Parser {
             );
             while self.match_operators(vec![TokenType::COMMA]) {
                 if parameters.len() >= 250 {
-                    // println!("Cannot have more than 250 parameters.");
-                    exit(70);
+                    self.invalid_error(String::from("Cannot have more than 250 parameters."));
                 }
 
                 parameters.push(
@@ -363,7 +367,7 @@ impl Parser {
             name,
             params: parameters,
             body,
-            function_type: String::from("local"),
+            environment: None,
         }
     }
 
@@ -541,7 +545,7 @@ impl Parser {
             arguments.push(self.expression());
             while self.match_operators(vec![TokenType::COMMA]) {
                 if arguments.len() >= 255 {
-                    exit(70);
+                    self.invalid_error(String::from("Can't have more than 255 arguments."));
                 }
                 arguments.push(self.expression());
             }

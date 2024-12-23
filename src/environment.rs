@@ -2,13 +2,13 @@ use std::{collections::HashMap, process::exit};
 
 use crate::{interpreter::Global, Expr};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum EnvironmentValue {
     Expr(Expr),
     Global(Global),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Environment {
     pub map: HashMap<String, EnvironmentValue>,
     pub enclosing: Option<Box<Environment>>,
@@ -43,7 +43,7 @@ impl Environment {
             return;
         }
 
-        exit(70);
+        self.environment_error(&format!("Undefined variable '{}'", name));
     }
 
     pub fn define(&mut self, name: &str, value: EnvironmentValue) {
@@ -69,6 +69,11 @@ impl Environment {
         }
         // println!("Undefined variable '{name}'");
         // println!("[line {line}]");
+        self.environment_error(&format!("[line {}] Undefined variable '{}'", line, name))
+    }
+
+    fn environment_error(&self, message: &str) -> Option<&EnvironmentValue> {
+        // println!("{}", message);
         exit(70);
     }
 }

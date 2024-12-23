@@ -78,16 +78,3 @@ pub fn get_from_unary(expr_unary: &Expr) -> String {
         expr_unary.to_string()
     }
 }
-
-/*
-
-pub fn language_error(token: Token, message: &str) {
-    if token.token_type == TokenType::EOF {
-        println!("[line {}] at end {message}", token.line);
-    } else {
-        println!("[line {}] at end '{}' {message}", token.line, token.lexeme);
-    }
-    exit(65);
-}
-
-*/

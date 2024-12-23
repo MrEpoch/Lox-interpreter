@@ -107,7 +107,7 @@ pub enum Expr {
         name: Token,
         params: Vec<Token>,
         body: Vec<Expr>,
-        function_type: String,
+        environment: Option<environment::Environment>,
     },
     Variable {
         name: String,
@@ -150,9 +150,9 @@ impl<'a> fmt::Display for Expr {
                 name,
                 params,
                 body,
-                function_type,
+                environment
             } => f.write_fmt(format_args!(
-                "{name} {:?} {:?} {function_type}",
+                "{name} {:?} {:?}",
                 params, body
             )),
             Expr::Call(a, b, c) => f.write_fmt(format_args!("{a} {b} {:?}", c)),
@@ -203,7 +203,7 @@ pub enum EvaluatorReturn {
     Global(Global),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum Global {
     Clock(Clock),
 }
@@ -221,7 +221,8 @@ pub trait LoxCallable: Debug + Clone {
 impl Expr {
     pub fn is_lox_callable(&self, callee: &Expr) -> bool {
         match &callee {
-            Expr::Var(t) => true,
+            Expr::Var(_) => true,
+            Expr::Call(..) => true,
             _ => false,
         }
     }
@@ -231,17 +232,20 @@ impl LoxCallable for Expr {
     fn call(
         &self,
         environment: &mut environment::Environment,
-        fn_bind: Option<&Expr>,
+        _fn_bind: Option<&Expr>,
         arguments: Vec<Expr>,
     ) -> CallReturn {
         // Don't have declaration
 
-        let mut environment_f = environment.clone();
-
         match self {
-            Expr::Function { params, body, .. } => {
+            Expr::Function { params, body, environment: env_fn, name } => {
+                let mut env_f = env_fn.clone();
+                env_f.as_mut().unwrap().define(
+                    &name.lexeme,
+                    EnvironmentValue::Expr(self.clone())
+                );
                 for i in 0..params.len() {
-                    environment_f.define(
+                    env_f.as_mut().unwrap().define(
                         &params[i].lexeme,
                         EnvironmentValue::Expr(arguments[i].clone()),
                     );
@@ -250,7 +254,7 @@ impl LoxCallable for Expr {
                 let evaluator = evaluator::Evaluator::new();
                 let expr_block = Expr::Block(body.clone());
                 let evaluated =
-                    evaluator.evaluate(&expr_block, &mut environment_f, Some(&expr_block));
+                    evaluator.evaluate(&expr_block, &mut env_f.clone().unwrap(), Some(&expr_block));
                 if let EvaluatorReturn::Expr(e) = evaluated {
                     match e {
                         Expr::Return(_, v) => return CallReturn::Expr(*v),
@@ -278,7 +282,7 @@ pub enum CallReturn {
     Expr(Expr),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Clock {}
 
 impl LoxCallable for Clock {
@@ -422,7 +426,7 @@ impl Interpreter {
                 Expr::Literal(l) => {
                     println!("{}", print_based_on_literal(&l));
                 }
-                Expr::Unary { operator, right } => {
+                Expr::Unary { .. } => {
                     println!("{}", get_from_unary(&self.expressions.as_ref().unwrap()[0]));
                 }
                 Expr::String(s) => {
