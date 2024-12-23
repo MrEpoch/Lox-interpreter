@@ -234,7 +234,7 @@ impl Evaluator {
                                 CallReturn::Expr(e) => e,
                             }
                         }
-                        _ => return Expr::Nil,
+                        _ => exit(70),
                     },
                     EvaluatorReturn::Global(g) => match g {
                         Global::Clock(c) => {
