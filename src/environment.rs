@@ -1,4 +1,4 @@
-use std::{collections::HashMap, process::exit};
+use std::{cell::RefCell, collections::HashMap, process::exit, rc::Rc};
 
 use crate::{interpreter::Global, Expr};
 
@@ -10,35 +10,35 @@ pub enum EnvironmentValue {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Environment {
-    pub map: HashMap<String, EnvironmentValue>,
-    pub enclosing: Option<Box<Environment>>,
+    pub map: RefCell<HashMap<String, EnvironmentValue>>,
+    pub enclosing: Option<Rc<Environment>>,
 }
 
 impl Environment {
     pub fn new() -> Self {
         Self {
             enclosing: None,
-            map: HashMap::new(),
+            map: RefCell::new(HashMap::new()),
         }
     }
 
     pub fn migrate_environment(
         &mut self,
-        map: HashMap<String, EnvironmentValue>,
-        enclosing: Option<Box<Environment>>,
+        map: RefCell<HashMap<String, EnvironmentValue>>,
+        enclosing: Option<Rc<Environment>>,
     ) {
         self.map = map;
-        self.enclosing = enclosing;
+        self.enclosing = Some(enclosing.unwrap());
     }
 
-    pub fn assign(&mut self, name: &str, value: EnvironmentValue) {
+    pub fn assign(&self, name: &str, value: EnvironmentValue) {
         if self.check_definition(name) {
-            self.map.remove(name);
-            self.map.insert(name.to_string(), value);
+            self.map.borrow_mut().remove(name);
+            self.map.borrow_mut().insert(name.to_string(), value);
             return;
         }
 
-        if let Some(enclosing) = &mut self.enclosing {
+        if let Some(ref enclosing) = self.enclosing {
             enclosing.assign(name, value);
             return;
         }
@@ -47,21 +47,23 @@ impl Environment {
     }
 
     pub fn define(&mut self, name: &str, value: EnvironmentValue) {
-        if self.map.contains_key(name) {
-            self.map.remove(name);
-            self.map.insert(name.to_string(), value);
+        if self.map.borrow().contains_key(name) {
+            self.map.borrow_mut().remove(name);
+            self.map.borrow_mut().insert(name.to_string(), value);
         } else {
-            self.map.insert(name.to_string(), value);
+            self.map.borrow_mut().insert(name.to_string(), value);
         }
     }
 
     pub fn check_definition(&self, name: &str) -> bool {
-        self.map.contains_key(name)
+        self.map.borrow().contains_key(name)
     }
 
-    pub fn get(&self, name: &str, line: u32) -> Option<&EnvironmentValue> {
+    pub fn get(&self, name: &str, line: u32) -> Option<EnvironmentValue> {
         if self.check_definition(name) {
-            return self.map.get(name);
+            if let Some(val) = self.map.borrow().get(name) {
+                return Some(val.clone());
+            }
         }
 
         if let Some(enclosing) = &self.enclosing {
@@ -72,7 +74,7 @@ impl Environment {
         self.environment_error(&format!("[line {}] Undefined variable '{}'", line, name))
     }
 
-    fn environment_error(&self, message: &str) -> Option<&EnvironmentValue> {
+    fn environment_error(&self, message: &str) -> Option<EnvironmentValue> {
         // println!("{}", message);
         exit(70);
     }

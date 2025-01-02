@@ -1,6 +1,8 @@
 use core::fmt;
+use std::borrow::BorrowMut;
 use std::fmt::Debug;
 use std::io::Write;
+use std::rc::Rc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{collections::HashMap, fs, io, process::exit, sync::Mutex};
 
@@ -107,7 +109,7 @@ pub enum Expr {
         name: Token,
         params: Vec<Token>,
         body: Vec<Expr>,
-        environment: Option<environment::Environment>,
+        environment: Option<Rc<environment::Environment>>,
     },
     Variable {
         name: String,
@@ -239,22 +241,23 @@ impl LoxCallable for Expr {
 
         match self {
             Expr::Function { params, body, environment: env_fn, name } => {
-                let mut env_f = env_fn.clone();
-                env_f.as_mut().unwrap().define(
-                    &name.lexeme,
-                    EnvironmentValue::Expr(self.clone())
-                );
+                let mut fn_scope = environment::Environment::new();
+
                 for i in 0..params.len() {
-                    env_f.as_mut().unwrap().define(
+                    fn_scope.define(
                         &params[i].lexeme,
                         EnvironmentValue::Expr(arguments[i].clone()),
                     );
                 }
 
+                fn_scope.enclosing = env_fn.clone();
+
                 let evaluator = evaluator::Evaluator::new();
                 let expr_block = Expr::Block(body.clone());
                 let evaluated =
-                    evaluator.evaluate(&expr_block, &mut env_f.clone().unwrap(), Some(&expr_block));
+                    evaluator.evaluate(&expr_block, &mut fn_scope, Some(&expr_block));
+
+
                 if let EvaluatorReturn::Expr(e) = evaluated {
                     match e {
                         Expr::Return(_, v) => return CallReturn::Expr(*v),

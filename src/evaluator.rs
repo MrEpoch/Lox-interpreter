@@ -1,4 +1,5 @@
 use std::process::exit;
+use std::rc::Rc;
 
 use crate::interpreter::LoxCallable;
 use crate::{
@@ -124,7 +125,7 @@ impl Evaluator {
                 let mut evaluated: Expr;
                 let mut return_expr = Expr::Nil;
 
-                environment_clone.enclosing = Some(Box::new(environment.clone()));
+                environment_clone.enclosing = Some(Rc::new(environment.clone()));
 
                 for expr in vec {
                     match self.evaluate(expr, &mut environment_clone, fn_bind.clone()) {
@@ -145,8 +146,7 @@ impl Evaluator {
                     runner::interpret(evaluated)
                 }
 
-                let prev_env = environment_clone.enclosing.unwrap();
-                environment.migrate_environment(prev_env.map, prev_env.enclosing);
+                let prev_env = environment_clone.enclosing.unwrap(); 
 
                 return_expr
             }
@@ -186,14 +186,13 @@ impl Evaluator {
             Expr::Function {
                 name, params, body, ..
             } => {
-                let environment_copy = environment.clone();
                 environment.define(
                     &name.lexeme,
                     EnvironmentValue::Expr(Expr::Function {
                         name: name.clone(),
                         params: params.clone(),
                         body: body.clone(),
-                        environment: Some(environment_copy),
+                        environment: Some(Rc::new(environment.clone())),
                     }),
                 );
                 Expr::String(format!("<fn {}>", name.lexeme))
