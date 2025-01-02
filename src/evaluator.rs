@@ -148,6 +148,8 @@ impl Evaluator {
 
                 let prev_env = environment_clone.enclosing.unwrap(); 
 
+                environment.migrate_environment(prev_env.map.clone(), prev_env.enclosing.clone());
+
                 return_expr
             }
             Expr::Increment(i) => match self.evaluate(i, environment, fn_bind) {

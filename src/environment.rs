@@ -28,7 +28,11 @@ impl Environment {
         enclosing: Option<Rc<Environment>>,
     ) {
         self.map = map;
-        self.enclosing = Some(enclosing.unwrap());
+        if let Some(enclosing) = enclosing {
+            self.enclosing = Some(enclosing);
+        } else {
+            self.enclosing = None;
+        }
     }
 
     pub fn assign(&self, name: &str, value: EnvironmentValue) {
