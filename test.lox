@@ -1,38 +1,12 @@
-var x = 1;
-var y = 2;
+// This program demonstrates global and local variable shadowing in Lox.
+var a = 94;
 
-fun printBoth() {
-  if (x < y) {
-    print "x is less than y:";
-    print x;
-    print y;
-  } else {
-    print "x is not less than y:";
-    print x;
-    print y;
-  }
+fun printAndModify() {
+  print a;
+  var a = 10;
+  print a;
 }
 
-{
-  var x = 10;
-  {
-    var y = 20;
-
-    var i = 0;
-    while (i < 3) {
-      x = x + 1;
-      y = y - 1;
-      print "Local x: ";
-      print x;
-      print "Local y: ";
-      print y;
-      i = i + 1;
-    }
-
-    if (x > y) {
-      print "Local x > y";
-    }
-
-    printBoth();
-  }
-}
+print a;
+var a = 16;
+printAndModify();

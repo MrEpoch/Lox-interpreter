@@ -11,7 +11,7 @@ pub enum EnvironmentValue {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Environment {
     pub map: RefCell<HashMap<String, EnvironmentValue>>,
-    pub enclosing: Option<Rc<Environment>>,
+    pub enclosing: Option<Rc<RefCell<Environment>>>,
 }
 
 impl Environment {
@@ -19,19 +19,6 @@ impl Environment {
         Self {
             enclosing: None,
             map: RefCell::new(HashMap::new()),
-        }
-    }
-
-    pub fn migrate_environment(
-        &mut self,
-        map: RefCell<HashMap<String, EnvironmentValue>>,
-        enclosing: Option<Rc<Environment>>,
-    ) {
-        self.map = map;
-        if let Some(enclosing) = enclosing {
-            self.enclosing = Some(enclosing);
-        } else {
-            self.enclosing = None;
         }
     }
 
@@ -43,14 +30,18 @@ impl Environment {
         }
 
         if let Some(ref enclosing) = self.enclosing {
-            enclosing.assign(name, value);
+            enclosing.borrow().assign(name, value);
             return;
         }
 
         self.environment_error(&format!("Undefined variable '{}'", name));
     }
 
-    pub fn define(&mut self, name: &str, value: EnvironmentValue) {
+    pub fn set_enclosing(&mut self, enclosing: Rc<RefCell<Environment>>) {
+        self.enclosing = Some(enclosing);
+    }
+
+    pub fn define(&self, name: &str, value: EnvironmentValue) {
         if self.map.borrow().contains_key(name) {
             self.map.borrow_mut().remove(name);
             self.map.borrow_mut().insert(name.to_string(), value);
@@ -71,7 +62,7 @@ impl Environment {
         }
 
         if let Some(enclosing) = &self.enclosing {
-            return enclosing.get(name, line);
+            return enclosing.borrow().get(name, line);
         }
         // println!("Undefined variable '{name}'");
         // println!("[line {line}]");

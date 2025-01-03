@@ -1,3 +1,4 @@
+use std::cell::RefCell;
 use std::process::exit;
 use std::rc::Rc;
 
@@ -19,7 +20,7 @@ impl Evaluator {
     pub fn evaluate(
         &self,
         statement: &Expr,
-        environment: &mut environment::Environment,
+        environment: &Rc<RefCell<environment::Environment>>,
         fn_bind: Option<&Expr>,
     ) -> EvaluatorReturn {
         self.evaluator(&statement, environment, fn_bind)
@@ -33,12 +34,12 @@ impl Evaluator {
     fn evaluator(
         &self,
         expr: &Expr,
-        environment: &mut environment::Environment,
+        environment: &Rc<RefCell<environment::Environment>>,
         fn_bind: Option<&Expr>,
     ) -> EvaluatorReturn {
         match expr {
             Expr::Var(t) => {
-                let val = environment.get(&t.lexeme, t.line).unwrap().clone();
+                let val = environment.borrow().get(&t.lexeme, t.line).unwrap().clone();
                 // self.evaluator(&val, environment)
                 match val {
                     EnvironmentValue::Expr(e) => match &e {
@@ -73,7 +74,7 @@ impl Evaluator {
     fn expr_match(
         &self,
         expr: &Expr,
-        environment: &mut environment::Environment,
+        environment: &Rc<RefCell<environment::Environment>>,
         fn_bind: Option<&Expr>,
     ) -> Expr {
         match expr {
@@ -114,21 +115,20 @@ impl Evaluator {
             Expr::Assign { name, value } => {
                 let value_e = self.evaluate(value, environment, fn_bind);
                 if let EvaluatorReturn::Expr(e) = value_e {
-                    environment.assign(name, EnvironmentValue::Expr(e.clone()));
+                    environment.borrow_mut().assign(name, EnvironmentValue::Expr(e.clone()));
                     e
                 } else {
                     self.invalid_error(String::from("Assign error"))
                 }
             }
             Expr::Block(vec) => {
-                let mut environment_clone = environment::Environment::new();
+                let environment_clone = Rc::new(RefCell::new(environment::Environment::new()));
                 let mut evaluated: Expr;
                 let mut return_expr = Expr::Nil;
 
-                environment_clone.enclosing = Some(Rc::new(environment.clone()));
-
+                environment_clone.borrow_mut().enclosing = Some(environment.clone());
                 for expr in vec {
-                    match self.evaluate(expr, &mut environment_clone, fn_bind.clone()) {
+                    match self.evaluate(expr, &environment_clone, fn_bind.clone()) {
                         EvaluatorReturn::Expr(e) => match &e {
                             Expr::Return(keyword, v) => {
                                 if let Some(_) = fn_bind {
@@ -145,10 +145,6 @@ impl Evaluator {
                     };
                     runner::interpret(evaluated)
                 }
-
-                let prev_env = environment_clone.enclosing.unwrap(); 
-
-                environment.migrate_environment(prev_env.map.clone(), prev_env.enclosing.clone());
 
                 return_expr
             }
@@ -188,13 +184,13 @@ impl Evaluator {
             Expr::Function {
                 name, params, body, ..
             } => {
-                environment.define(
+                environment.borrow_mut().define(
                     &name.lexeme,
                     EnvironmentValue::Expr(Expr::Function {
                         name: name.clone(),
                         params: params.clone(),
                         body: body.clone(),
-                        environment: Some(Rc::new(environment.clone())),
+                        environment: Some(environment.clone()),
                     }),
                 );
                 Expr::String(format!("<fn {}>", name.lexeme))
@@ -309,7 +305,7 @@ impl Evaluator {
             Expr::Variable { name, value } => {
                 let value_def = self.evaluate(value, environment, fn_bind);
                 if let EvaluatorReturn::Expr(e) = value_def {
-                    environment.define(name, EnvironmentValue::Expr(e.clone()));
+                    environment.borrow().define(name, EnvironmentValue::Expr(e.clone()));
                     Expr::Variable {
                         name: name.clone(),
                         value: Box::new(e),

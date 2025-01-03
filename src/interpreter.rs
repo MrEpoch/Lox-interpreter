@@ -1,5 +1,5 @@
 use core::fmt;
-use std::borrow::BorrowMut;
+use std::cell::RefCell;
 use std::fmt::Debug;
 use std::io::Write;
 use std::rc::Rc;
@@ -109,7 +109,7 @@ pub enum Expr {
         name: Token,
         params: Vec<Token>,
         body: Vec<Expr>,
-        environment: Option<Rc<environment::Environment>>,
+        environment: Option<Rc<RefCell<environment::Environment>>>,
     },
     Variable {
         name: String,
@@ -213,7 +213,7 @@ pub enum Global {
 pub trait LoxCallable: Debug + Clone {
     fn call(
         &self,
-        environment: &mut environment::Environment,
+        environment: &Rc<RefCell<environment::Environment>>,
         fn_bind: Option<&Expr>,
         arguments: Vec<Expr>,
     ) -> CallReturn;
@@ -233,29 +233,29 @@ impl Expr {
 impl LoxCallable for Expr {
     fn call(
         &self,
-        environment: &mut environment::Environment,
+        _environment: &Rc<RefCell<environment::Environment>>,
         _fn_bind: Option<&Expr>,
         arguments: Vec<Expr>,
     ) -> CallReturn {
         // Don't have declaration
 
         match self {
-            Expr::Function { params, body, environment: env_fn, name } => {
-                let mut fn_scope = environment::Environment::new();
+            Expr::Function { params, body, environment: env_fn, .. } => {
+                let fn_scope = Rc::new(RefCell::new(environment::Environment::new()));
 
                 for i in 0..params.len() {
-                    fn_scope.define(
+                    fn_scope.borrow().define(
                         &params[i].lexeme,
                         EnvironmentValue::Expr(arguments[i].clone()),
                     );
                 }
 
-                fn_scope.enclosing = env_fn.clone();
+                fn_scope.borrow_mut().set_enclosing(env_fn.clone().unwrap());
 
                 let evaluator = evaluator::Evaluator::new();
                 let expr_block = Expr::Block(body.clone());
                 let evaluated =
-                    evaluator.evaluate(&expr_block, &mut fn_scope, Some(&expr_block));
+                    evaluator.evaluate(&expr_block, &fn_scope, Some(&expr_block));
 
 
                 if let EvaluatorReturn::Expr(e) = evaluated {
@@ -291,7 +291,7 @@ pub struct Clock {}
 impl LoxCallable for Clock {
     fn call(
         &self,
-        _environment: &mut environment::Environment,
+        _environment: &Rc<RefCell<environment::Environment>>,
         _fn_bind: Option<&Expr>,
         _arguments: Vec<Expr>,
     ) -> CallReturn {
@@ -452,7 +452,7 @@ impl Interpreter {
             let mut parser = parser::Parser::new(scanner.tokens);
             let expression = parser.expression();
             let evaluator = evaluator::Evaluator::new();
-            match evaluator.evaluate(&expression, &mut environment::Environment::new(), None) {
+            match evaluator.evaluate(&expression, &Rc::new(RefCell::new(environment::Environment::new())), None) {
                 EvaluatorReturn::Expr(e) => match e {
                     Expr::String(s) => {
                         println!("{}", s);
@@ -484,9 +484,9 @@ impl Interpreter {
             let mut parser = parser::Parser::new(scanner.tokens);
             parser.parse();
             let evaluator = evaluator::Evaluator::new();
-            let mut environment = environment::Environment::new();
+            let environment = Rc::new(RefCell::new(environment::Environment::new()));
 
-            environment.define(
+            environment.borrow().define(
                 "clock",
                 EnvironmentValue::Global(Global::Clock(Clock::new())),
             );
@@ -494,7 +494,7 @@ impl Interpreter {
             let mut index = 0;
             while index < parser.statements.len() {
                 let s = &parser.statements[index];
-                let evaluated = evaluator.evaluate(s, &mut environment, None);
+                let evaluated = evaluator.evaluate(s, &environment, None);
                 match evaluated {
                     EvaluatorReturn::Expr(e) => {
                         runner::interpret(e);
